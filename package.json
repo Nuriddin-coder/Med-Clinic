@@ -1,0 +1,46 @@
+{
+  "name": "front",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start -p 6565",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^6.0.0",
+    "@radix-ui/react-select": "^2.4.1",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@reduxjs/toolkit": "^2.2.7",
+    "@tanstack/react-query": "^5.59.0",
+    "@tanstack/react-query-devtools": "^5.59.0",
+    "axios": "^1.7.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.536.0",
+    "next": "^14.2.14",
+    "next-intl": "^3.20.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hook-form": "^7.91.0",
+    "react-redux": "^9.1.2",
+    "sass": "^1.79.4",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5"
+  },
+  "description": "```\r 20.15.0\r ```",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

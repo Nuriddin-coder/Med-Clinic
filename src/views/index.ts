@@ -1,0 +1,8 @@
+export { HomePage } from "./home/page";
+export { DoctorsListPage } from "./doctors/list";
+export { DoctorDetailPage } from "./doctors/detail";
+export { ServicesPage } from "./services/page";
+export { BookPage } from "./book/page";
+export { AppointmentsPage } from "./appointments/page";
+export { AboutPage } from "./about/page";
+export { ContactPage } from "./contact/page";

@@ -1,0 +1,43 @@
+{
+  "common": {
+    "loading": "Yuklanmoqda...",
+    "error": "Xatolik",
+    "success": "Muvaffaqiyat",
+    "cancel": "Bekor qilish",
+    "save": "Saqlash",
+    "delete": "O'chirish",
+    "edit": "Tahrirlash",
+    "add": "Qo'shish",
+    "search": "Qidirish",
+    "filter": "Filtr",
+    "sort": "Saralash",
+    "view": "Ko'rish",
+    "close": "Yopish",
+    "back": "Orqaga",
+    "next": "Keyingi",
+    "previous": "Oldingi",
+    "submit": "Yuborish",
+    "reset": "Qayta tiklash",
+    "confirm": "Tasdiqlash",
+    "yes": "Ha",
+    "no": "Yo'q"
+  },
+  "navigation": {
+    "home": "Bosh sahifa",
+    "about": "Biz haqimizda",
+    "contact": "Aloqa",
+    "products": "Mahsulotlar",
+    "services": "Xizmatlar",
+    "news": "Yangiliklar",
+    "gallery": "Galereya"
+  },
+  "forms": {
+    "name": "Ism",
+    "email": "Email",
+    "phone": "Telefon",
+    "message": "Xabar",
+    "required": "Majburiy maydon",
+    "invalid_email": "Noto'g'ri email formati",
+    "invalid_phone": "Noto'g'ri telefon raqami"
+  }
+}
