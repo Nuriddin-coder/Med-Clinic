@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-export default function NotFound() {
+export default function LocaleNotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-Light_background px-4 text-center">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
       <p className="text-8xl font-bold text-Primary_app">404</p>
       <h1 className="mt-4 text-2xl font-bold text-blackColor">Sahifa topilmadi</h1>
       <p className="mt-2 text-Navbar_Color">
