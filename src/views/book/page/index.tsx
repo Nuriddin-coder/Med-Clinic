@@ -2,367 +2,904 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2 } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  CreditCard,
+  FileText,
+  HeartPulse,
+  Phone,
+  Printer,
+  Sparkles,
+  Star,
+  Stethoscope,
+  User,
+} from "lucide-react";
 import { Link, useRouter } from "@/components";
+import { InitialsAvatar } from "@/components/clinic/avatar";
 import { PageHero } from "@/components/clinic/page-hero";
-import { StatusBadge } from "@/components/clinic/status-badge";
+import { SpecialtyIcon } from "@/components/clinic/specialty-icon";
 import { Button } from "@/components/ui/button";
 import { FieldShell, TextArea, TextInput } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { PageLoader } from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/toast";
+import { BookPageSkeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   useCreateAppointment,
   useDoctors,
   useServices,
   useSlots,
+  useSpecialties,
 } from "@/hooks/clinic/use-clinic-query";
-import { ClinicApiError } from "@/lib/clinic-api/errors";
-import { formatDateUz, todayIsoDate, weekdayFromDate } from "@/lib/clinic-api/time";
+import { normalizePhone } from "@/lib/clinic-api/phone";
+import { todayIsoDate, weekdayFromDate } from "@/lib/clinic-api/time";
+import { formatClinicDate } from "@/lib/date";
 import { formatSom } from "@/lib/format";
-import { appointmentSchema, AppointmentFormValues } from "@/lib/validations/schemas";
 import { Appointment } from "@/types/clinic";
+
+type WizardStep = 1 | 2 | 3 | 4;
 
 export const BookPage = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { notify } = useToast();
+
   const presetDoctorId = searchParams.get("doctorId") ?? "";
   const presetServiceId = searchParams.get("serviceId") ?? "";
+  const presetDate = searchParams.get("date") ?? "";
+  const presetTime = searchParams.get("time") ?? "";
 
-  const [confirmedAppointment, setConfirmedAppointment] = useState<Appointment | null>(null);
-
-  const doctors = useDoctors({ sort: "name-asc" });
-  const services = useServices({ sort: "name-asc" });
+  // Queries
+  const specialties = useSpecialties();
+  const doctors = useDoctors({ sort: "rating-desc" });
+  const services = useServices({ sort: "price-asc" });
   const createAppointment = useCreateAppointment();
 
-  const form = useForm<AppointmentFormValues>({
-    resolver: zodResolver(appointmentSchema),
-    defaultValues: {
-      doctorId: presetDoctorId,
-      serviceId: presetServiceId,
-      date: "",
-      time: "",
-      patientName: "",
-      patientPhone: "+998",
-      notes: "",
-    },
-  });
+  // Wizard state
+  const [currentStep, setCurrentStep] = useState<WizardStep>(1);
+  const [selectedSpecialtyId, setSelectedSpecialtyId] = useState<string>("");
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(presetServiceId);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>(presetDoctorId);
+  const [selectedDate, setSelectedDate] = useState<string>(presetDate || todayIsoDate());
+  const [selectedTime, setSelectedTime] = useState<string>(presetTime);
 
-  const doctorId = form.watch("doctorId");
-  const serviceId = form.watch("serviceId");
-  const date = form.watch("date");
+  // Patient inputs
+  const [patientName, setPatientName] = useState<string>("");
+  const [patientPhone, setPatientPhone] = useState<string>("+998");
+  const [notes, setNotes] = useState<string>("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Success state
+  const [confirmedAppointment, setConfirmedAppointment] = useState<Appointment | null>(null);
+
+  // Selected entities
   const selectedDoctor = useMemo(
-    () => (doctors.data ?? []).find((item) => item.id === doctorId),
-    [doctors.data, doctorId]
+    () => (doctors.data ?? []).find((d) => d.id === selectedDoctorId),
+    [doctors.data, selectedDoctorId]
   );
 
-  const isWorkingDay = useMemo(() => {
-    if (!selectedDoctor || !date) return true;
-    const weekday = weekdayFromDate(date);
-    return Boolean(selectedDoctor.schedule[weekday]);
-  }, [selectedDoctor, date]);
-
-  const matchingServices = useMemo(() => {
-    const all = services.data ?? [];
-    if (!selectedDoctor) {
-      return all;
-    }
-    return all.filter((item) => selectedDoctor.specialtyIds.includes(item.specialtyId));
-  }, [services.data, selectedDoctor]);
-
-  const slots = useSlots(
-    { doctorId, date, serviceId },
-    Boolean(doctorId && date && serviceId)
+  const selectedService = useMemo(
+    () => (services.data ?? []).find((s) => s.id === selectedServiceId),
+    [services.data, selectedServiceId]
   );
 
-  useEffect(() => {
-    if (presetDoctorId) {
-      form.setValue("doctorId", presetDoctorId, { shouldValidate: true });
-    }
-  }, [presetDoctorId, form]);
+  const selectedSpecialty = useMemo(
+    () => (specialties.data ?? []).find((sp) => sp.id === selectedSpecialtyId),
+    [specialties.data, selectedSpecialtyId]
+  );
 
+  // If preset doctor is given in URL, auto-set specialty and move to step 2/3
   useEffect(() => {
-    if (presetServiceId) {
-      form.setValue("serviceId", presetServiceId, { shouldValidate: true });
-    }
-  }, [presetServiceId, form]);
-
-  useEffect(() => {
-    if (serviceId && matchingServices.length > 0) {
-      const exists = matchingServices.some((item) => item.id === serviceId);
-      if (!exists) {
-        form.setValue("serviceId", "");
-        form.setValue("time", "");
+    if (presetDoctorId && doctors.data) {
+      const doc = doctors.data.find((d) => d.id === presetDoctorId);
+      if (doc && doc.specialtyIds.length > 0) {
+        setSelectedSpecialtyId(doc.specialtyIds[0]);
+        setSelectedDoctorId(presetDoctorId);
       }
     }
-  }, [matchingServices, serviceId, form]);
+  }, [presetDoctorId, doctors.data]);
 
+  // Filter services by selected specialty
+  const availableServices = useMemo(() => {
+    const all = services.data ?? [];
+    if (!selectedSpecialtyId) return all;
+    return all.filter((s) => s.specialtyId === selectedSpecialtyId);
+  }, [services.data, selectedSpecialtyId]);
+
+  // Filter doctors by selected specialty or service
+  const availableDoctors = useMemo(() => {
+    const all = doctors.data ?? [];
+    if (!selectedSpecialtyId) {
+      if (selectedService) {
+        return all.filter((d) => d.specialtyIds.includes(selectedService.specialtyId));
+      }
+      return all;
+    }
+    return all.filter((d) => d.specialtyIds.includes(selectedSpecialtyId));
+  }, [doctors.data, selectedSpecialtyId, selectedService]);
+
+  // Fetch slots for selected doctor + date + service
+  const isDoctorWorkingToday = useMemo(() => {
+    if (!selectedDoctor || !selectedDate) return false;
+    const weekday = weekdayFromDate(selectedDate);
+    return Boolean(selectedDoctor.schedule[weekday]);
+  }, [selectedDoctor, selectedDate]);
+
+  const slots = useSlots(
+    {
+      doctorId: selectedDoctorId,
+      date: selectedDate,
+      serviceId: selectedServiceId || "srv-consult-therapy",
+    },
+    Boolean(selectedDoctorId && selectedDate && isDoctorWorkingToday)
+  );
+
+  // Check valid available slots
+  const availableSlots = useMemo(() => {
+    if (!slots.data) return [];
+    return slots.data.filter((slot) => slot.available);
+  }, [slots.data]);
+
+  // Restore phone from localStorage on mount
   useEffect(() => {
-    form.setValue("time", "");
-  }, [date, doctorId, serviceId, form]);
+    try {
+      const saved = localStorage.getItem("medclinic:lastPhone");
+      if (saved && saved.startsWith("+998")) {
+        setPatientPhone(saved);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
-  const minDate = todayIsoDate();
-
-  if (doctors.isLoading || services.isLoading) {
-    return <PageLoader label="Yozilish formasi yuklanmoqda..." />;
+  if (specialties.isLoading || doctors.isLoading || services.isLoading) {
+    return <BookPageSkeleton />;
   }
 
-  const onSubmit = form.handleSubmit(async (values) => {
+  // --- Step Navigation handlers ---
+  const handleNextFromStep1 = () => {
+    if (!selectedServiceId) {
+      toast.error("Iltimos, avval kerakli xizmatni tanlang!");
+      return;
+    }
+    setCurrentStep(2);
+  };
+
+  const handleNextFromStep2 = () => {
+    if (!selectedDoctorId) {
+      toast.error("Iltimos, shifokorni tanlang!");
+      return;
+    }
+    setCurrentStep(3);
+  };
+
+  const handleNextFromStep3 = () => {
+    if (!selectedDate) {
+      toast.error("Iltimos, sanani tanlang!");
+      return;
+    }
+    if (!selectedTime) {
+      toast.error("Iltimos, bo‘sh vaqt slotini tanlang!");
+      return;
+    }
+    setCurrentStep(4);
+  };
+
+  const handleSubmitBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: Record<string, string> = {};
+
+    if (!patientName.trim() || patientName.trim().length < 3) {
+      newErrors.name = "Ism familiya kamida 3 ta belgidan iborat bo‘lishi kerak";
+    }
+
+    const normPhone = normalizePhone(patientPhone);
+    const phoneRegex = /^\+998\d{9}$/;
+    if (!phoneRegex.test(normPhone)) {
+      newErrors.phone = "Telefon raqami +998XXXXXXXXX formatida (9 ta raqam) bo‘lishi kerak";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error("Iltimos, formadagi xatoliklarni to‘g‘rilang");
+      return;
+    }
+
+    setErrors({});
+
     try {
-      const parsed = appointmentSchema.parse(values);
-      const appointment = await createAppointment.mutateAsync({
-        doctorId: parsed.doctorId,
-        serviceId: parsed.serviceId,
-        date: parsed.date,
-        time: parsed.time,
-        patientName: parsed.patientName,
-        patientPhone: parsed.patientPhone,
-        notes: parsed.notes,
+      const result = await createAppointment.mutateAsync({
+        doctorId: selectedDoctorId,
+        serviceId: selectedServiceId,
+        date: selectedDate,
+        time: selectedTime,
+        patientName: patientName.trim(),
+        patientPhone: normPhone,
+        notes: notes.trim(),
       });
 
-      // Save phone to localStorage for convenience
+      // Persist phone
       try {
-        window.localStorage.setItem("medclinic:lastPhone", appointment.patientPhone);
+        localStorage.setItem("medclinic:lastPhone", normPhone);
       } catch {
         // ignore
       }
 
-      notify("success", "Qabul muvaffaqiyatli yaratildi!");
-      setConfirmedAppointment(appointment);
-      form.reset({
-        doctorId: "",
-        serviceId: "",
-        date: "",
-        time: "",
-        patientName: "",
-        patientPhone: appointment.patientPhone,
-        notes: "",
-      });
-    } catch (error) {
-      const message = error instanceof ClinicApiError ? error.message : "Yozilish amalga oshmadi";
-      notify("error", message);
+      toast.success("Qabul muvaffaqiyatli rasmiylashtirildi!");
+      setConfirmedAppointment(result);
+    } catch (error: any) {
+      toast.error(error.message || "Qabulni rasmiylashtirishda xatolik yuz berdi");
       void slots.refetch();
     }
-  });
+  };
 
-  const selectedService = matchingServices.find((item) => item.id === serviceId);
-
-  return (
-    <div>
-      <PageHero
-        eyebrow="Online navbat"
-        title="Qabulga yozilish"
-        description="Shifokor, xizmat va bo'sh vaqtni tanlang. Tasdiqlashni klinika administratori qiladi."
-      />
-      <div className="container grid gap-8 py-10 lg:grid-cols-[1.2fr_0.8fr]">
-        <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-Input_border bg-white p-6 shadow-cardShadow">
-          <FieldShell label="Shifokor" error={form.formState.errors.doctorId?.message}>
-            <Select
-              value={doctorId}
-              onValueChange={(val) => {
-                form.setValue("doctorId", val, { shouldValidate: true });
-              }}
-            >
-              <SelectTrigger className="w-full" aria-label="Shifokor">
-                <SelectValue placeholder="Shifokorni tanlang" />
-              </SelectTrigger>
-              <SelectContent>
-                {(doctors.data ?? []).map((doctor) => (
-                  <SelectItem key={doctor.id} value={doctor.id}>
-                    {doctor.fullName} — {doctor.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FieldShell>
-
-          <FieldShell label="Xizmat" error={form.formState.errors.serviceId?.message}>
-            <Select
-              value={serviceId}
-              disabled={!doctorId}
-              onValueChange={(val) => {
-                form.setValue("serviceId", val, { shouldValidate: true });
-              }}
-            >
-              <SelectTrigger className="w-full" aria-label="Xizmat">
-                <SelectValue placeholder={doctorId ? "Xizmatni tanlang" : "Avval shifokorni tanlang"} />
-              </SelectTrigger>
-              <SelectContent>
-                {matchingServices.map((service) => (
-                  <SelectItem key={service.id} value={service.id}>
-                    {service.name} ({formatSom(service.price)})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FieldShell>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <FieldShell
-              label="Sana"
-              error={form.formState.errors.date?.message}
-              hint={!isWorkingDay ? "Diqqat: Shifokor ushbu kunda qabul qilmaydi" : undefined}
-            >
-              <TextInput type="date" min={minDate} {...form.register("date")} />
-            </FieldShell>
-            <FieldShell
-              label="Ism familiya"
-              error={form.formState.errors.patientName?.message}
-            >
-              <TextInput placeholder="Ali Valiyev" {...form.register("patientName")} />
-            </FieldShell>
-          </div>
-
-          <FieldShell
-            label="Telefon"
-            hint="Qabullaringiz shu raqam orqali topiladi"
-            error={form.formState.errors.patientPhone?.message}
-          >
-            <TextInput placeholder="+998 90 123 45 67" {...form.register("patientPhone")} />
-          </FieldShell>
-
-          <FieldShell label="Bo'sh vaqt" error={form.formState.errors.time?.message}>
-            {!doctorId || !serviceId || !date ? (
-              <p className="rounded-xl bg-Light_background px-3 py-3 text-sm text-Navbar_Color">
-                Shifokor, xizmat va sanani tanlang — slotlar shu yerda chiqadi.
-              </p>
-            ) : !isWorkingDay ? (
-              <p className="rounded-xl bg-amber-50 px-3 py-3 text-sm text-amber-800">
-                Tanlangan kunda shifokor ishlamaydi. Iltimos, boshqa ish kunini tanlang.
-              </p>
-            ) : slots.isLoading ? (
-              <p className="text-sm text-Navbar_Color">Slotlar yuklanmoqda...</p>
-            ) : slots.data && slots.data.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {slots.data.map((slot) => {
-                  const selected = form.watch("time") === slot.time;
-                  return (
-                    <button
-                      key={slot.time}
-                      type="button"
-                      disabled={!slot.available}
-                      onClick={() => form.setValue("time", slot.time, { shouldValidate: true })}
-                      className={`rounded-xl border px-2 py-2 text-sm font-medium transition ${
-                        !slot.available
-                          ? "cursor-not-allowed border-Input_border bg-ClrEEE text-Navbar_Color"
-                          : selected
-                            ? "border-Primary_app bg-Secondary text-Primary_app"
-                            : "border-Input_border bg-white hover:border-Primary_app"
-                      }`}
-                    >
-                      {slot.time}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="rounded-xl bg-amber-50 px-3 py-3 text-sm text-amber-800">
-                Bu kunda bo'sh vaqt yo'q. Boshqa sana tanlang.
-              </p>
-            )}
-          </FieldShell>
-
-          <FieldShell label="Izoh (ixtiyoriy)" error={form.formState.errors.notes?.message}>
-            <TextArea placeholder="Asosiy shikoyat" {...form.register("notes")} />
-          </FieldShell>
-
-          <Button type="submit" className="w-full" disabled={createAppointment.isPending}>
-            {createAppointment.isPending ? "Yuborilmoqda..." : "Qabulni yaratish"}
-          </Button>
-        </form>
-
-        <aside className="h-fit rounded-2xl border border-Input_border bg-white p-6 shadow-cardShadow">
-          <h2 className="text-lg font-semibold">Xulosa</h2>
-          <ul className="mt-4 space-y-3 text-sm text-Navbar_Color">
-            <li>
-              <span className="block text-xs uppercase">Shifokor</span>
-              <strong className="text-blackColor">{selectedDoctor?.fullName ?? "Tanlanmagan"}</strong>
-            </li>
-            <li>
-              <span className="block text-xs uppercase">Xizmat</span>
-              <strong className="text-blackColor">{selectedService?.name ?? "Tanlanmagan"}</strong>
-            </li>
-            <li>
-              <span className="block text-xs uppercase">Davomiylik / narx</span>
-              <strong className="text-blackColor">
-                {selectedService
-                  ? `${selectedService.durationMinutes} daqiqa • ${formatSom(selectedService.price)}`
-                  : "—"}
-              </strong>
-            </li>
-          </ul>
-        </aside>
-      </div>
-
-      {/* Confirmation Modal */}
-      {confirmedAppointment ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl md:p-8 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-emerald-600">
-              <CheckCircle2 className="h-8 w-8" />
-              <h2 className="text-2xl font-bold text-blackColor">Qabul yaratildi!</h2>
-            </div>
-            <p className="mt-2 text-sm text-Navbar_Color">
-              Sizning qabulingiz muvaffaqiyatli saqlandi va administrator tasdig&apos;ini kutmoqda.
-            </p>
-
-            <div className="mt-6 space-y-3 rounded-2xl bg-Light_background p-4 text-sm">
+  // --- If Appointment Confirmed (Success Check Page) ---
+  if (confirmedAppointment) {
+    return (
+      <div className="min-h-[calc(100vh-72px-300px)]">
+        <PageHero
+          eyebrow="Tasdiqlandi"
+          title="Qabul muvaffaqiyatli rasmiylashtirildi!"
+          description="Sizning qabulingiz tizimga kiritildi. Navbat vaqtida klinikamizga tashrif buyuring."
+        />
+        <div className="container py-12 px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            {/* Receipt Header */}
+            <div className="bg-gradient-to-r from-Primary_app to-teal-600 px-8 py-8 text-white">
               <div className="flex items-center justify-between">
-                <span className="text-Navbar_Color">Holat:</span>
-                <StatusBadge status={confirmedAppointment.status} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-Navbar_Color">Sana:</span>
-                <span className="font-semibold text-blackColor">
-                  {formatDateUz(confirmedAppointment.date)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-Navbar_Color">Vaqt:</span>
-                <span className="font-semibold text-blackColor">{confirmedAppointment.time}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-Navbar_Color">Bemor:</span>
-                <span className="font-semibold text-blackColor">{confirmedAppointment.patientName}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-Navbar_Color">Telefon:</span>
-                <span className="font-semibold text-blackColor">{confirmedAppointment.patientPhone}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur shrink-0">
+                    <CheckCircle2 className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">MED Clinic Kvitansiyasi</h2>
+                    <p className="text-xs text-white/80">Onlayn qabul chiptasi</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="inline-block rounded-full bg-emerald-500/30 px-3 py-1 text-xs font-semibold backdrop-blur whitespace-nowrap">
+                    Tasdiqlangan
+                  </span>
+                  <p className="mt-1 font-mono text-xs text-white/80 whitespace-nowrap">
+                    ID: {confirmedAppointment.id}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button
-                className="flex-1"
-                onClick={() => {
-                  router.push(
-                    `/appointments?phone=${encodeURIComponent(confirmedAppointment.patientPhone)}`
-                  );
-                }}
-              >
-                Mening qabullarimga o&apos;tish
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setConfirmedAppointment(null)}
-              >
-                Yana qabulga yozilish
-              </Button>
+            {/* Receipt Body */}
+            <div className="space-y-6 p-8">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-400">Bemor</p>
+                  <p className="mt-1 font-bold text-slate-800">
+                    {confirmedAppointment.patientName}
+                  </p>
+                  <p className="font-mono text-xs text-slate-500">
+                    {confirmedAppointment.patientPhone}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-400">Shifokor</p>
+                  <p className="mt-1 font-bold text-slate-800">
+                    {selectedDoctor?.fullName || "Mutaxassis shifokor"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {selectedDoctor?.title}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-400">Qabul sanasi va vaqti</p>
+                  <p className="mt-1 font-bold text-Primary_app">
+                    {formatClinicDate(confirmedAppointment.date)} ({confirmedAppointment.time})
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Davomiyligi: ~{confirmedAppointment.durationMinutes} daqiqa
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase text-slate-400">Xizmat va to‘lov</p>
+                  <p className="mt-1 font-bold text-slate-800">
+                    {selectedService?.name || "Konsultatsiya"}
+                  </p>
+                  <p className="text-sm font-extrabold text-emerald-600">
+                    {formatSom(selectedService?.price || selectedDoctor?.consultationPrice || 0)}
+                  </p>
+                </div>
+              </div>
+
+              {confirmedAppointment.notes ? (
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-xs">
+                  <span className="font-semibold text-slate-600">Izoh: </span>
+                  <span className="text-slate-500">{confirmedAppointment.notes}</span>
+                </div>
+              ) : null}
+
+              {/* Instructions */}
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-blue-900">
+                <p className="font-semibold">Eslatma:</p>
+                <p className="mt-1 leading-relaxed text-blue-800">
+                  Iltimos, qabul vaqtidan 10 daqiqa oldin klinikaga yetib keling. Qabulingizni o‘zgartirish yoki bekor qilish zarurati tug‘ilsa,
+                  &ldquo;Mening qabullarim&rdquo; bo‘limidan telefon raqamingiz orqali amalga oshirishingiz mumkin.
+                </p>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.print()}
+                  className="rounded-xl flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+                >
+                  <Printer className="h-4 w-4" />
+                  Kvitansiyani chop etish
+                </Button>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl shrink-0 whitespace-nowrap"
+                    onClick={() => {
+                      setConfirmedAppointment(null);
+                      setCurrentStep(1);
+                    }}
+                  >
+                    Yangi qabul
+                  </Button>
+                  <Button asChild size="sm" className="rounded-xl shrink-0 whitespace-nowrap">
+                    <Link href={`/appointments?phone=${encodeURIComponent(confirmedAppointment.patientPhone)}`}>
+                      Mening qabullarim
+                    </Link>
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      ) : null}
+      </div>
+    );
+  }
+
+  // --- Step Indicator Data ---
+  const stepLabels = [
+    { number: 1, title: "Xizmat" },
+    { number: 2, title: "Shifokor" },
+    { number: 3, title: "Sana va Vaqt" },
+    { number: 4, title: "Bemor ma'lumotlari" },
+  ];
+
+  return (
+    <div className="min-h-[calc(100vh-72px-300px)]">
+      <PageHero
+        eyebrow="Onlayn navbat"
+        title="Shifokor qabuliga yozilish"
+        description="4 oddiy qadamda kerakli mutaxassis va qulay vaqtni tanlang."
+      />
+
+      <div className="container py-10 px-4 sm:px-6 lg:px-8">
+        {/* Step Indicator Progress Bar */}
+        <div className="mx-auto mb-10 max-w-3xl">
+          <div className="grid grid-cols-4 gap-2 sm:gap-4">
+            {stepLabels.map((s) => {
+              const isPast = currentStep > s.number;
+              const isCurrent = currentStep === s.number;
+              return (
+                <button
+                  key={s.number}
+                  disabled={!isPast && !isCurrent}
+                  onClick={() => {
+                    if (isPast) setCurrentStep(s.number as WizardStep);
+                  }}
+                  className={`flex flex-col items-center text-center transition ${
+                    isCurrent
+                      ? "text-Primary_app"
+                      : isPast
+                      ? "cursor-pointer text-emerald-600 hover:text-emerald-700"
+                      : "cursor-not-allowed text-slate-400"
+                  }`}
+                >
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-2xl text-sm font-bold transition shadow-sm ${
+                      isPast
+                        ? "bg-emerald-500 text-white"
+                        : isCurrent
+                        ? "bg-Primary_app text-white ring-4 ring-Primary_app/20"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {isPast ? <Check className="h-5 w-5" /> : s.number}
+                  </div>
+                  <span className="mt-2 hidden text-xs font-semibold sm:block whitespace-nowrap">
+                    {s.title}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {/* Progress bar line */}
+          <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full bg-Primary_app transition-all duration-300"
+              style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Wizard Layout: Steps on Left, Live Summary on Right */}
+        <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-12">
+          {/* Main Step Content */}
+          <div className="lg:col-span-8">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              {/* STEP 1: MUTAXASSISLIK VA XIZMATNI TANLASH */}
+              {currentStep === 1 && (
+                <div>
+                  <div className="mb-6">
+                    <span className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+                      1-qadam
+                    </span>
+                    <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                      Mutaxassislik va Xizmatni tanlang
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Klinikamiz yo‘nalishini tanlang va kerakli xizmat turini belgilang.
+                    </p>
+                  </div>
+
+                  {/* Specialty chips */}
+                  <div className="mb-6">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Mutaxassislik bo‘yicha saralash:
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSpecialtyId("")}
+                        className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition shrink-0 whitespace-nowrap ${
+                          selectedSpecialtyId === ""
+                            ? "bg-Primary_app text-white shadow-sm"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
+                      >
+                        Barchasi
+                      </button>
+                      {(specialties.data ?? []).map((sp) => (
+                        <button
+                          key={sp.id}
+                          type="button"
+                          onClick={() => setSelectedSpecialtyId(sp.id)}
+                          className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition shrink-0 whitespace-nowrap ${
+                            selectedSpecialtyId === sp.id
+                              ? "bg-Primary_app text-white shadow-sm"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
+                        >
+                          <SpecialtyIcon id={sp.id} name={sp.name} iconName={sp.icon} className="h-3.5 w-3.5" />
+                          <span>{sp.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Services list */}
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                    {availableServices.length === 0 ? (
+                      <p className="py-8 text-center text-sm text-slate-400">
+                        Tanlangan mutaxassislik bo‘yicha xizmatlar topilmadi.
+                      </p>
+                    ) : (
+                      availableServices.map((service) => {
+                        const isSelected = selectedServiceId === service.id;
+                        return (
+                          <div
+                            key={service.id}
+                            onClick={() => {
+                              setSelectedServiceId(service.id);
+                              if (service.specialtyId && !selectedSpecialtyId) {
+                                setSelectedSpecialtyId(service.specialtyId);
+                              }
+                            }}
+                            className={`cursor-pointer rounded-2xl border p-4 transition ${
+                              isSelected
+                                ? "border-Primary_app bg-blue-50/60 ring-2 ring-Primary_app/20"
+                                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3">
+                                <div
+                                  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ${
+                                    isSelected
+                                      ? "bg-Primary_app text-white"
+                                      : "bg-slate-100 text-slate-500"
+                                  }`}
+                                >
+                                  {isSelected ? (
+                                    <Check className="h-4 w-4" />
+                                  ) : (
+                                    <SpecialtyIcon id={service.specialtyId} className="h-4 w-4" />
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-slate-900">
+                                    {service.name}
+                                  </h4>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {service.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="font-extrabold text-Primary_app whitespace-nowrap">
+                                  {formatSom(service.price)}
+                                </p>
+                                <span className="text-[11px] font-medium text-slate-400 whitespace-nowrap">
+                                  ~{service.durationMinutes} daqiqa
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="mt-8 flex justify-end">
+                    <Button
+                      size="lg"
+                      disabled={!selectedServiceId}
+                      onClick={handleNextFromStep1}
+                      className="rounded-2xl px-6 shrink-0 whitespace-nowrap"
+                    >
+                      Keyingi qadam →
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: SHIFOKORNI TANLASH */}
+              {currentStep === 2 && (
+                <div>
+                  <div className="mb-6">
+                    <span className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+                      2-qadam
+                    </span>
+                    <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                      Shifokorni tanlang
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Ushbu xizmat bo‘yicha qabul olib boruvchi malakali mutaxassislarimiz.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 max-h-[460px] overflow-y-auto pr-1">
+                    {availableDoctors.length === 0 ? (
+                      <div className="col-span-2 py-8 text-center text-sm text-slate-400">
+                        Tanlangan xizmat bo‘yicha shifokor topilmadi.
+                      </div>
+                    ) : (
+                      availableDoctors.map((doc) => {
+                        const isSelected = selectedDoctorId === doc.id;
+                        return (
+                          <div
+                            key={doc.id}
+                            onClick={() => setSelectedDoctorId(doc.id)}
+                            className={`cursor-pointer rounded-2xl border p-4 transition ${
+                              isSelected
+                                ? "border-Primary_app bg-blue-50/60 ring-2 ring-Primary_app/20"
+                                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <InitialsAvatar
+                                initials={doc.photoInitials}
+                                hue={doc.photoHue}
+                                size="md"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="truncate font-bold text-slate-900">
+                                    {doc.fullName}
+                                  </h4>
+                                  {isSelected && (
+                                    <span className="rounded-full bg-Primary_app p-1 text-white shrink-0">
+                                      <Check className="h-3 w-3" />
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                                  {doc.title}
+                                </p>
+                                <div className="mt-2 flex items-center gap-3 text-xs text-slate-600">
+                                  <span className="flex items-center gap-1 font-semibold text-amber-500">
+                                    <Star className="h-3.5 w-3.5 fill-amber-400" />
+                                    {doc.rating}
+                                  </span>
+                                  <span>{doc.experienceYears} yil staj</span>
+                                </div>
+                                <p className="mt-2 text-xs font-bold text-Primary_app whitespace-nowrap">
+                                  Konsultatsiya: {formatSom(doc.consultationPrice)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="mt-8 flex items-center justify-between">
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentStep(1)}
+                      className="rounded-2xl shrink-0 whitespace-nowrap"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" /> Ortga
+                    </Button>
+                    <Button
+                      size="lg"
+                      disabled={!selectedDoctorId}
+                      onClick={handleNextFromStep2}
+                      className="rounded-2xl px-6 shrink-0 whitespace-nowrap"
+                    >
+                      Keyingi qadam →
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: SANANI VA BO'SH VAQT SLOTINI TANLASH */}
+              {currentStep === 3 && (
+                <div>
+                  <div className="mb-6">
+                    <span className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+                      3-qadam
+                    </span>
+                    <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                      Sana va bo‘sh vaqt slotini tanlang
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Faqat haqiqatda mavjud va bo‘sh bo‘lgan vaqt slotlari ko‘rsatiladi.
+                    </p>
+                  </div>
+
+                  {/* Date Input */}
+                  <div className="mb-6">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Qabul sanasi:
+                    </label>
+                    <div className="max-w-xs">
+                      <TextInput
+                        type="date"
+                        min={todayIsoDate()}
+                        value={selectedDate}
+                        onChange={(e) => {
+                          setSelectedDate(e.target.value);
+                          setSelectedTime("");
+                        }}
+                      />
+                    </div>
+                    {selectedDate && (
+                      <p className="mt-2 text-xs font-medium text-Primary_app">
+                        Tanlangan: {formatClinicDate(selectedDate, "EEEE, d-MMMM yyyy")}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Doctor Working Status */}
+                  {!isDoctorWorkingToday ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+                      Shifokor {selectedDoctor?.fullName} bu kunda qabul o‘tkazmaydi (dam olish kuni). Iltimos, boshqa sanani tanlang.
+                    </div>
+                  ) : slots.isLoading ? (
+                    <div className="py-8 text-center text-sm text-slate-500 animate-pulse">
+                      Shifokorning bo‘sh vaqtlari tekshirilmoqda...
+                    </div>
+                  ) : availableSlots.length === 0 ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+                      Ushbu sanada barcha vaqtlar band qilingan. Iltimos, boshqa kunni tanlang.
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">
+                        Bo‘sh vaqt slotlari ({availableSlots.length} ta mavjud):
+                      </p>
+                      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5">
+                        {slots.data?.map((slot) => {
+                          const isAvailable = slot.available;
+                          const isSelected = selectedTime === slot.time;
+                          return isAvailable ? (
+                            <button
+                              key={slot.time}
+                              type="button"
+                              onClick={() => setSelectedTime(slot.time)}
+                              className={`rounded-xl border py-2.5 text-center text-xs font-bold transition whitespace-nowrap ${
+                                isSelected
+                                  ? "border-Primary_app bg-Primary_app text-white shadow-md shadow-Primary_app/30"
+                                  : "border-slate-200 bg-white text-slate-800 hover:border-Primary_app hover:bg-blue-50/50"
+                              }`}
+                            >
+                              {slot.time}
+                            </button>
+                          ) : (
+                            <div
+                              key={slot.time}
+                              title="Band qilingan"
+                              className="cursor-not-allowed rounded-xl border border-slate-100 bg-slate-100 py-2.5 text-center text-xs text-slate-400 line-through opacity-50 whitespace-nowrap"
+                            >
+                              {slot.time}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-8 flex items-center justify-between">
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentStep(2)}
+                      className="rounded-2xl shrink-0 whitespace-nowrap"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" /> Ortga
+                    </Button>
+                    <Button
+                      size="lg"
+                      disabled={!selectedDate || !selectedTime || !isDoctorWorkingToday}
+                      onClick={handleNextFromStep3}
+                      className="rounded-2xl px-6 shrink-0 whitespace-nowrap"
+                    >
+                      Keyingi qadam →
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: BEMOR MA'LUMOTLARI VA TASDIQLASH */}
+              {currentStep === 4 && (
+                <form onSubmit={handleSubmitBooking}>
+                  <div className="mb-6">
+                    <span className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+                      4-qadam
+                    </span>
+                    <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                      Bemor ma&apos;lumotlari va tasdiqlash
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Ismingiz va telefoningizni kiriting. Navbat haqidagi SMS va tasdiqnoma shu raqamga bog‘lanadi.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <FieldShell label="Bemorning to‘liq ismi" error={errors.name}>
+                      <TextInput
+                        placeholder="Masalan: Dilshod Rahimov"
+                        value={patientName}
+                        onChange={(e) => setPatientName(e.target.value)}
+                        autoFocus
+                      />
+                    </FieldShell>
+
+                    <FieldShell
+                      label="Telefon raqami (+998XXXXXXXXX)"
+                      error={errors.phone}
+                    >
+                      <TextInput
+                        placeholder="+998901234567"
+                        value={patientPhone}
+                        onChange={(e) => setPatientPhone(e.target.value)}
+                      />
+                    </FieldShell>
+
+                    <FieldShell label="Shikoyat yoki qo‘shimcha izoh (ixtiyoriy)">
+                      <TextArea
+                        placeholder="Kasallik alomatlari, avvalgi tashxislar yoki xohishlaringiz..."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        rows={3}
+                      />
+                    </FieldShell>
+                  </div>
+
+                  <div className="mt-8 flex items-center justify-between">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setCurrentStep(3)}
+                      className="rounded-2xl shrink-0 whitespace-nowrap"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" /> Ortga
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="lg"
+                      disabled={createAppointment.isPending}
+                      className="rounded-2xl px-8 shadow-lg shadow-Primary_app/25 shrink-0 whitespace-nowrap"
+                    >
+                      {createAppointment.isPending
+                        ? "Band qilinmoqda..."
+                        : "Qabulni tasdiqlash →"}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+
+          {/* Live Booking Summary Card */}
+          <div className="lg:col-span-4">
+            <div className="sticky top-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <FileText className="h-5 w-5 text-Primary_app" />
+                Qabul xulosasi
+              </h3>
+
+              <div className="mt-5 space-y-4 border-t border-slate-100 pt-4 text-sm">
+                <div>
+                  <span className="text-xs font-semibold uppercase text-slate-400">
+                    Xizmat turi:
+                  </span>
+                  <p className="font-bold text-slate-800">
+                    {selectedService?.name || "Tanlanmagan"}
+                  </p>
+                  {selectedService && (
+                    <span className="text-xs text-slate-500">
+                      Davomiyligi: ~{selectedService.durationMinutes} daqiqa
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-xs font-semibold uppercase text-slate-400">
+                    Shifokor:
+                  </span>
+                  <p className="font-bold text-slate-800">
+                    {selectedDoctor?.fullName || "Tanlanmagan"}
+                  </p>
+                  {selectedDoctor && (
+                    <span className="text-xs text-slate-500">
+                      {selectedDoctor.title}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-xs font-semibold uppercase text-slate-400">
+                    Sana va Vaqt:
+                  </span>
+                  <p className="font-bold text-Primary_app">
+                    {selectedDate && selectedTime
+                      ? `${formatClinicDate(selectedDate)} soat ${selectedTime}`
+                      : selectedDate
+                      ? `${formatClinicDate(selectedDate)} (vaqt tanlanmagan)`
+                      : "Tanlanmagan"}
+                  </p>
+                </div>
+
+                <div className="border-t border-slate-100 pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase text-slate-500">
+                      Konsultatsiya to‘lovi:
+                    </span>
+                    <span className="text-base font-extrabold text-emerald-600 whitespace-nowrap">
+                      {formatSom(selectedService?.price || selectedDoctor?.consultationPrice || 0)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    * To‘lov qabul vaqtida klinikada amalga oshiriladi (naqd yoki karta).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

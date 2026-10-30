@@ -1,27 +1,52 @@
 "use client";
 
-import { CalendarCheck, ClipboardList, Search, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import {
+  ArrowRight,
+  CalendarCheck,
+  CheckCircle2,
+  Clock,
+  HeartPulse,
+  Mail,
+  MapPin,
+  Phone,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Stethoscope,
+  Users,
+} from "lucide-react";
 import { Link, useRouter } from "@/components";
 import { DoctorCard } from "@/components/clinic/doctor-card";
-import { Button } from "@/components/ui/button";
-import { PageLoader } from "@/components/ui/skeleton";
-import { useClinicInfo, useDoctors, useSpecialties } from "@/hooks/clinic/use-clinic-query";
+import { SpecialtyIcon } from "@/components/clinic/specialty-icon";
+import { Button, PrimaryButton, SecondaryButton } from "@/components/ui/button";
+import { HomeSkeleton } from "@/components/ui/skeleton";
+import {
+  useClinicInfo,
+  useDoctors,
+  useServices,
+  useSpecialties,
+} from "@/hooks/clinic/use-clinic-query";
+import { formatSom } from "@/lib/format";
 
-const steps = [
+const processSteps = [
   {
     icon: Search,
+    step: "01",
     title: "Shifokor yoki xizmatni tanlang",
-    text: "Mutaxassislik, reyting va narx bo'yicha qidiring.",
+    text: "Mutaxassislik, toifa va narx bo‘yicha kerakli shifokorni osongina qidiring.",
   },
   {
     icon: CalendarCheck,
-    title: "Bo'sh vaqtni belgilang",
-    text: "Faqat haqiqiy bo'sh slotlar ko'rsatiladi.",
+    step: "02",
+    title: "Bo‘sh vaqt slotini belgilang",
+    text: "Real vaqtda shifokorning aynan bo‘sh vaqtini tanlang va navbatsiz qabulga yoziling.",
   },
   {
-    icon: ClipboardList,
+    icon: HeartPulse,
+    step: "03",
     title: "Telefon orqali tasdiqlang",
-    text: "Akkaunt shart emas. Qabullaringizni shu raqam bilan topasiz.",
+    text: "Ortiqcha ro‘yxatdan o‘tish shart emas. Qabulingizni telefon raqamingiz orqali boshqaring.",
   },
 ];
 
@@ -30,147 +55,422 @@ export const HomePage = () => {
   const info = useClinicInfo();
   const doctors = useDoctors({ sort: "rating-desc" });
   const specialties = useSpecialties();
+  const services = useServices({ sort: "price-asc" });
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (info.isLoading || doctors.isLoading || specialties.isLoading) {
-    return <PageLoader label="Klinika ma'lumotlari yuklanmoqda..." />;
+    return <HomeSkeleton />;
   }
 
   const clinic = info.data;
-  const featured = (doctors.data ?? []).slice(0, 3);
+  const topDoctors = (doctors.data ?? []).slice(0, 3);
+  const featuredServices = (services.data ?? []).slice(0, 6);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    router.push(q ? `/doctors?q=${encodeURIComponent(q)}` : "/doctors");
+  };
 
   return (
-    <div>
-      <section className="bg-gradient-to-br from-Secondary via-white to-Light_background">
-        <div className="container grid items-center gap-10 py-14 lg:grid-cols-2 lg:py-20">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-Primary_app">
-              Onlayn tibbiy xizmatlar
-            </p>
-            <h1 className="mt-3 text-4xl font-bold leading-tight text-blackColor md:text-5xl">
-              {clinic?.name}: navbatsiz qabulga yoziling
-            </h1>
-            <p className="mt-4 max-w-xl text-lg text-Navbar_Color">{clinic?.tagline}</p>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-Bodytext_color">{clinic?.about}</p>
+    <div className="flex flex-col min-h-[calc(100vh-72px-300px)]">
+      {/* 1. HERO BANNER */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-50/70 via-white to-emerald-50/50 py-16 lg:py-24">
+        {/* Background decorative circles */}
+        <div className="pointer-events-none absolute -right-20 -top-20 h-96 w-96 rounded-full bg-Primary_app/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-20 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
 
-            {/* Hero search form */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const input = e.currentTarget.elements.namedItem("q") as HTMLInputElement;
-                const q = input.value.trim();
-                router.push(q ? `/doctors?q=${encodeURIComponent(q)}` : "/doctors");
-              }}
-              className="mt-7 flex max-w-lg gap-2"
-            >
+        <div className="container relative z-10 grid items-center gap-12 lg:grid-cols-12 px-4 sm:px-6 lg:px-8">
+          <div className="lg:col-span-7">
+            <div className="inline-flex items-center gap-2 rounded-full border border-Primary_app/20 bg-white/80 px-4 py-1.5 text-xs font-semibold text-Primary_app shadow-sm backdrop-blur">
+              <Sparkles className="h-4 w-4" />
+              <span>Zamonaviy tibbiy xizmatlar markazi</span>
+            </div>
+
+            <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+              Salomatligingiz —{" "}
+              <span className="bg-gradient-to-r from-Primary_app to-teal-600 bg-clip-text text-transparent">
+                bizning oliy maqsadimiz
+              </span>
+            </h1>
+
+            <p className="mt-4 max-w-2xl text-lg text-slate-600 sm:text-xl">
+              {clinic?.tagline || "Onlayn yozilish. Tirik navbatsiz yuqori darajadagi tibbiy qabul."}
+            </p>
+
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
+              {clinic?.about}
+            </p>
+
+            {/* Tezkor qidiruv */}
+            <form onSubmit={handleSearchSubmit} className="mt-8 flex max-w-xl gap-2 items-center">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-Navbar_Color" />
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
-                  name="q"
                   type="search"
-                  placeholder="Shifokor yoki yo'nalish qidiring..."
-                  className="h-12 w-full rounded-xl border border-Input_border bg-white pl-9 pr-3 text-sm text-blackColor outline-none transition focus:border-Primary_app focus:ring-2 focus:ring-Primary_app/20"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Shifokor ismi yoki mutaxassislikni qidiring..."
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-medium text-slate-900 shadow-sm outline-none transition focus:border-Primary_app focus:ring-4 focus:ring-Primary_app/15"
                 />
               </div>
-              <Button type="submit" size="lg">
+              <PrimaryButton type="submit" size="lg" className="rounded-2xl px-6 shrink-0 whitespace-nowrap">
                 Qidirish
-              </Button>
+              </PrimaryButton>
             </form>
 
-            <div className="mt-3 flex flex-wrap gap-3">
-              <Button asChild variant="outline" size="lg">
-                <Link href="/doctors">Barcha shifokorlar</Link>
-              </Button>
-              <Button asChild variant="ghost" size="lg">
+            {/* Asosiy tugmalar */}
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              <PrimaryButton asChild size="lg" className="rounded-2xl shrink-0 whitespace-nowrap">
                 <Link href="/book">Qabulga yozilish</Link>
-              </Button>
+              </PrimaryButton>
+              <SecondaryButton asChild size="lg" className="rounded-2xl shrink-0 whitespace-nowrap">
+                <Link href="/doctors">Shifokorlar bilan tanishish</Link>
+              </SecondaryButton>
+            </div>
+
+            {/* Kichik afzalliklar */}
+            <div className="mt-8 flex flex-wrap items-center gap-6 text-xs font-medium text-slate-600">
+              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                Tirik navbatsiz
+              </span>
+              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                Onlayn qabul tasdig‘i
+              </span>
+              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                Xalqaro standartlar
+              </span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              ["12+", "yillik tajriba"],
-              [String(clinic?.doctorCount ?? 10), "shifokor"],
-              ["18 400+", "bemor"],
-              ["08:00–20:00", "ish vaqti"],
-            ].map(([value, label]) => (
-              <div key={label} className="rounded-2xl border border-Input_border bg-white p-6 shadow-cardShadow">
-                <p className="text-2xl font-bold text-prm">{value}</p>
-                <p className="mt-1 text-sm text-Navbar_Color">{label}</p>
+
+          {/* 2. STATISTIKA BLOKI (/clinic ma'lumotlaridan) */}
+          <div className="lg:col-span-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-xl shadow-slate-200/50 backdrop-blur transition hover:-translate-y-1">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-Primary_app">
+                  <Clock className="h-6 w-6" />
+                </div>
+                <p className="mt-4 text-3xl font-extrabold text-slate-900">
+                  {clinic?.years ?? 12}+
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-500">Yillik tajriba</p>
               </div>
-            ))}
+
+              <div className="rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-xl shadow-slate-200/50 backdrop-blur transition hover:-translate-y-1">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-600">
+                  <Stethoscope className="h-6 w-6" />
+                </div>
+                <p className="mt-4 text-3xl font-extrabold text-slate-900">
+                  {clinic?.doctorCount ?? 10}+
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-500">Tajribali shifokorlar</p>
+              </div>
+
+              <div className="rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-xl shadow-slate-200/50 backdrop-blur transition hover:-translate-y-1">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <Users className="h-6 w-6" />
+                </div>
+                <p className="mt-4 text-3xl font-extrabold text-slate-900">
+                  {clinic?.patientCount ? `${clinic.patientCount.toLocaleString()}+` : "19 500+"}
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-500">Mamnun bemorlar</p>
+              </div>
+
+              <div className="rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-xl shadow-slate-200/50 backdrop-blur transition hover:-translate-y-1">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-50 text-purple-600">
+                  <HeartPulse className="h-6 w-6" />
+                </div>
+                <p className="mt-4 text-xl font-extrabold text-slate-900">
+                  08:00–20:00
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-500">Har kuni siz uchun</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="container py-14">
-        <h2 className="text-2xl font-bold text-blackColor">Qanday ishlaydi</h2>
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {steps.map((step, index) => (
-            <div key={step.title} className="rounded-2xl border border-Input_border bg-white p-6">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-Secondary text-Primary_app">
-                <step.icon className="h-5 w-5" />
+      {/* 3. QANDAY ISHLAYDI BLOKI */}
+      <section className="container py-16 px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <p className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+            Qulay va sodda
+          </p>
+          <h2 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">
+            Qabulga yozilish qanday ishlaydi?
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-slate-500">
+            Klinikamizda navbatda turishga hojat yo‘q — bir necha tugma orqali o‘z vaqtingizni tejang.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-6 md:grid-cols-3">
+          {processSteps.map((item) => (
+            <div
+              key={item.step}
+              className="relative rounded-3xl border border-slate-100 bg-white p-7 shadow-sm transition hover:shadow-md"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-Primary_app">
+                  <item.icon className="h-6 w-6" />
+                </div>
+                <span className="text-3xl font-extrabold text-slate-200">{item.step}</span>
               </div>
-              <p className="mt-4 text-xs font-semibold text-Primary_app">0{index + 1}</p>
-              <h3 className="mt-1 font-semibold text-blackColor">{step.title}</h3>
-              <p className="mt-2 text-sm text-Navbar_Color">{step.text}</p>
+              <h3 className="mt-5 text-lg font-bold text-slate-900">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">{item.text}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="bg-white py-14">
-        <div className="container">
-          <div className="mb-6 flex items-end justify-between gap-4">
+      {/* 4. MUTAXASSISLIKLAR (SPECIALTIES) - MOS IKONLAR BILAN */}
+      <section className="bg-slate-50/60 py-16">
+        <div className="container px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h2 className="text-2xl font-bold text-blackColor">Yo'nalishlar</h2>
-              <p className="mt-1 text-sm text-Navbar_Color">Kerakli mutaxassislikni tanlang</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+                Yo‘nalishlar
+              </p>
+              <h2 className="mt-1 text-3xl font-bold text-slate-900 sm:text-4xl">
+                Ommabop mutaxassisliklar
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Tashxislash va davolash bo‘yicha ixtisoslashgan shifokorlarimiz
+              </p>
             </div>
-            <Link href="/services" className="text-sm font-semibold text-Primary_app">
-              Barcha xizmatlar
-            </Link>
+            <SecondaryButton asChild className="rounded-xl shrink-0 whitespace-nowrap">
+              <Link href="/services">Barcha xizmatlar</Link>
+            </SecondaryButton>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {(specialties.data ?? []).map((item) => (
               <Link
                 key={item.id}
                 href={`/doctors?specialty=${item.id}`}
-                className="rounded-2xl border border-Input_border bg-Light_background p-4 transition hover:border-Primary_app hover:bg-Secondary"
+                className="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 transition duration-200 hover:-translate-y-1 hover:border-Primary_app hover:shadow-lg hover:shadow-Primary_app/10"
               >
-                <p className="font-semibold text-blackColor">{item.name}</p>
-                <p className="mt-1 line-clamp-2 text-xs text-Navbar_Color">{item.description}</p>
+                <div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-Primary_app/10 text-Primary_app transition group-hover:bg-Primary_app group-hover:text-white">
+                    <SpecialtyIcon id={item.id} name={item.name} iconName={item.icon} className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-4 font-bold text-slate-900 group-hover:text-Primary_app">
+                    {item.name}
+                  </h3>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                    {item.description}
+                  </p>
+                </div>
+                <span className="mt-4 flex items-center gap-1 text-xs font-semibold text-Primary_app">
+                  Shifokorlarni ko‘rish →
+                </span>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="container py-14">
-        <div className="mb-6 flex items-end justify-between">
-          <h2 className="text-2xl font-bold text-blackColor">Eng yuqori baholangan shifokorlar</h2>
-          <Link href="/doctors" className="text-sm font-semibold text-Primary_app">
-            Barchasi
-          </Link>
+      {/* 5. ENG YUQORI REYTINGLI SHIFOKORLAR */}
+      <section className="container py-16 px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+              Professionallar
+            </p>
+            <h2 className="mt-1 text-3xl font-bold text-slate-900 sm:text-4xl">
+              Eng yuqori reytingli shifokorlar
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Ko‘p yillik amaliy tajribaga ega bo‘lgan mutaxassislarimiz
+            </p>
+          </div>
+          <SecondaryButton asChild className="rounded-xl shrink-0 whitespace-nowrap">
+            <Link href="/doctors">Barcha shifokorlar ({doctors.data?.length ?? 0})</Link>
+          </SecondaryButton>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {featured.map((doctor) => (
-            <DoctorCard key={doctor.id} doctor={doctor} specialties={specialties.data ?? []} />
+
+        <div className="grid gap-6 md:grid-cols-3">
+          {topDoctors.map((doctor) => (
+            <DoctorCard
+              key={doctor.id}
+              doctor={doctor}
+              specialties={specialties.data ?? []}
+            />
           ))}
         </div>
       </section>
 
-      <section className="container pb-16">
-        <div className="flex flex-col items-start justify-between gap-6 rounded-3xl bg-prm px-8 py-10 text-white md:flex-row md:items-center">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs">
-              <ShieldCheck className="h-4 w-4" />
-              Ma&apos;lumotlaringiz faqat qabul uchun
+      {/* 6. XIZMATLAR VA NARXLAR PREVIEW */}
+      <section className="bg-slate-50/60 py-16">
+        <div className="container px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+                Shaffof narxlar
+              </p>
+              <h2 className="mt-1 text-3xl font-bold text-slate-900 sm:text-4xl">
+                Ommabop klinika xizmatlari
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Aniq narxlar, belgilangan qabul vaqti va xizmat davomiyligi
+              </p>
             </div>
-            <h2 className="text-2xl font-bold">Bugun qabulga yoziling</h2>
-            <p className="mt-2 max-w-xl text-sm text-white/75">
-              Qabullarni telefon raqamingiz orqali ko&apos;rasiz va kerak bo&apos;lsa bekor qilasiz.
+            <SecondaryButton asChild className="rounded-xl shrink-0 whitespace-nowrap">
+              <Link href="/services">To‘liq narxnoma</Link>
+            </SecondaryButton>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {featuredServices.map((service) => (
+              <div
+                key={service.id}
+                className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+              >
+                <div>
+                  <h3 className="font-bold text-slate-900">{service.name}</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                    {service.description}
+                  </p>
+                </div>
+                <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3">
+                  <span className="text-xs text-slate-500 whitespace-nowrap">
+                    {service.durationMinutes} daqiqa
+                  </span>
+                  <span className="text-base font-bold text-Primary_app whitespace-nowrap">
+                    {formatSom(service.price)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 7. ALOQA VA XARITA BLOKI */}
+      <section className="container py-16 px-4 sm:px-6 lg:px-8">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
+          <div className="grid lg:grid-cols-12">
+            {/* Kontakt ma'lumotlari */}
+            <div className="p-8 sm:p-10 lg:col-span-5 flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+                  Bog‘lanish
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">
+                  Biz bilan bog‘laning
+                </h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  Klinikamizga tashrif buyuring yoki telefon orqali ma’lumot oling.
+                </p>
+
+                <div className="mt-8 space-y-5">
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-Primary_app">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400">Manzil</p>
+                      <p className="text-sm font-medium text-slate-800">
+                        {clinic?.address || "Toshkent shahar, Yunusobod tumani, Amir Temur ko‘chasi 108"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                      <Phone className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400">Telefonlar</p>
+                      {(clinic?.phones ?? ["+998712000808", "+998901234567"]).map((phone) => (
+                        <a
+                          key={phone}
+                          href={`tel:${phone}`}
+                          className="block text-sm font-medium text-slate-800 hover:text-Primary_app whitespace-nowrap"
+                        >
+                          {phone}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400">Ish vaqti</p>
+                      <p className="text-sm font-medium text-slate-800">
+                        {clinic?.workingHoursLabel || "Dushanba–Shanba 08:00–20:00"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                      <Mail className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400">Email</p>
+                      <a
+                        href={`mailto:${clinic?.email || "info@medclinic.uz"}`}
+                        className="text-sm font-medium text-slate-800 hover:text-Primary_app"
+                      >
+                        {clinic?.email || "info@medclinic.uz"}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-slate-100 flex gap-3">
+                <PrimaryButton asChild className="rounded-xl flex-1 shrink-0 whitespace-nowrap">
+                  <Link href="/book">Qabulga yozilish</Link>
+                </PrimaryButton>
+                <SecondaryButton asChild className="rounded-xl flex-1 shrink-0 whitespace-nowrap">
+                  <Link href="/contact">Xabar qoldirish</Link>
+                </SecondaryButton>
+              </div>
+            </div>
+
+            {/* Interaktiv Xarita */}
+            <div className="relative min-h-[360px] bg-slate-100 lg:col-span-7">
+              <iframe
+                title="Clinic Location"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2995.845456247957!2d69.281895!3d41.333333!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDHCsDIwJzAwLjAiTiA2OcKwMTYnNTQuOCJF!5e0!3m2!1sen!2s!4v1620000000000!5m2!1sen!2s"
+                className="h-full w-full border-0"
+                loading="lazy"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 8. QABULGA CHAQIRUV BANNERI */}
+      <section className="container pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-start justify-between gap-6 rounded-3xl bg-gradient-to-r from-Primary_app to-teal-700 p-8 text-white shadow-xl shadow-Primary_app/20 md:flex-row md:items-center md:p-12">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur">
+              <ShieldCheck className="h-4 w-4" />
+              100% maxfiylik va qulaylik kafolati
+            </div>
+            <h2 className="mt-3 text-2xl font-bold sm:text-3xl">
+              Salomatligingizni kechiktirmang
+            </h2>
+            <p className="mt-2 max-w-xl text-sm text-white/85">
+              Bir necha daqiqa ichida o‘zingizga qulay vaqtga navbat oling va mutaxassis ko‘rigidan o‘ting.
             </p>
           </div>
-          <Button asChild size="lg" className="bg-white text-prm hover:bg-Secondary">
-            <Link href="/book">Boshlash</Link>
+          <Button
+            asChild
+            size="lg"
+            className="rounded-2xl bg-white text-Primary_app shadow-lg hover:bg-slate-100 shrink-0 whitespace-nowrap"
+          >
+            <Link href="/book">Hoziroq yozilish →</Link>
           </Button>
         </div>
       </section>

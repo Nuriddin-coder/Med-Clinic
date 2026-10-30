@@ -7,9 +7,10 @@ import { InitialsAvatar } from "@/components/clinic/avatar";
 import { PageHero } from "@/components/clinic/page-hero";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/ui/field";
-import { PageLoader } from "@/components/ui/skeleton";
+import { DoctorDetailSkeleton, SlotSkeleton } from "@/components/ui/skeleton";
 import { useDoctor, useServices, useSlots, useSpecialties } from "@/hooks/clinic/use-clinic-query";
 import { todayIsoDate, weekdayFromDate } from "@/lib/clinic-api/time";
+import { formatClinicDate } from "@/lib/date";
 import { formatSom, WEEKDAY_LABELS, WEEKDAY_ORDER } from "@/lib/format";
 
 export const DoctorDetailPage = ({ doctorId }: { doctorId: string }) => {
@@ -45,14 +46,17 @@ export const DoctorDetailPage = ({ doctorId }: { doctorId: string }) => {
   }, [doctor, selectedDate]);
 
   if (doctorQuery.isLoading || specialties.isLoading || services.isLoading) {
-    return <PageLoader label="Shifokor profili yuklanmoqda..." />;
+    return <DoctorDetailSkeleton />;
   }
 
   if (doctorQuery.isError || !doctor) {
     return (
-      <div className="container py-16">
-        <h1 className="text-2xl font-bold">Shifokor topilmadi</h1>
-        <Button asChild className="mt-4">
+      <div className="container min-h-[calc(100vh-72px-300px)] py-16 text-center">
+        <h1 className="text-2xl font-bold text-slate-800">Shifokor topilmadi</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Ushbu ID ga ega shifokor profili mavjud emas yoki o‘chirilgan.
+        </p>
+        <Button asChild className="mt-6 rounded-2xl">
           <Link href="/doctors">Ro‘yxatga qaytish</Link>
         </Button>
       </div>
@@ -64,60 +68,94 @@ export const DoctorDetailPage = ({ doctorId }: { doctorId: string }) => {
     .map((item) => item.name);
 
   return (
-    <div>
+    <div className="min-h-[calc(100vh-72px-300px)]">
       <PageHero eyebrow="Shifokor" title={doctor.fullName} description={doctor.title} />
-      <div className="container grid gap-8 py-10 lg:grid-cols-[1.4fr_0.8fr]">
-        <div className="rounded-2xl border border-Input_border bg-white p-6 shadow-cardShadow">
-          <div className="flex flex-col gap-5 sm:flex-row">
+
+      <div className="container grid gap-8 py-10 lg:grid-cols-[1.4fr_0.8fr] px-4 sm:px-6 lg:px-8">
+        {/* Left main content */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="flex flex-col gap-6 sm:flex-row items-start">
             <InitialsAvatar initials={doctor.photoInitials} hue={doctor.photoHue} size="lg" />
-            <div>
-              <p className="text-sm text-Primary_app">{names.join(" • ")}</p>
-              <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                <span className="inline-flex items-center gap-1 font-medium">
-                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+            <div className="flex-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-Primary_app">
+                {names.join(" • ")}
+              </p>
+              <h2 className="mt-1 text-2xl font-extrabold text-slate-900">{doctor.fullName}</h2>
+              <div className="mt-3 flex flex-wrap gap-4 text-xs font-medium text-slate-600">
+                <span className="flex items-center gap-1 font-bold text-amber-500">
+                  <Star className="h-4 w-4 fill-amber-400" />
                   {doctor.rating.toFixed(1)} ({doctor.reviewCount} ta fikr)
                 </span>
-                <span>{doctor.experienceYears} yil tajriba</span>
-                <span className="font-semibold">{formatSom(doctor.consultationPrice)}</span>
+                <span>{doctor.experienceYears} yil staj</span>
+                <span className="font-bold text-slate-900">
+                  Konsultatsiya: {formatSom(doctor.consultationPrice)}
+                </span>
               </div>
-              <p className="mt-4 text-sm leading-6 text-Bodytext_color">{doctor.bio}</p>
+              <p className="mt-4 text-sm leading-relaxed text-slate-600">{doctor.bio}</p>
             </div>
           </div>
 
-          <h2 className="mt-8 text-lg font-semibold">Ta’lim</h2>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-Navbar_Color">
+          <h3 className="mt-8 text-base font-bold text-slate-900 border-t border-slate-100 pt-6">
+            Ta’lim va malaka oshirish
+          </h3>
+          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-slate-600">
             {doctor.education.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
 
-          <h2 className="mt-6 text-lg font-semibold">Tillar</h2>
-          <p className="mt-1 text-sm text-Navbar_Color">{doctor.languages.join(", ")}</p>
-
-          <h2 className="mt-8 text-lg font-semibold">Bemorlar fikri</h2>
-          <div className="mt-3 space-y-3">
-            {doctor.reviews.map((review) => (
-              <blockquote key={review.id} className="rounded-xl bg-Light_background p-4">
-                <p className="text-sm text-blackColor">{review.comment}</p>
-                <footer className="mt-2 text-xs text-Navbar_Color">
-                  {review.authorName} • {review.rating}/5 • {review.date}
-                </footer>
-              </blockquote>
+          <h3 className="mt-6 text-base font-bold text-slate-900 border-t border-slate-100 pt-6">
+            Muloqot tillari
+          </h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {doctor.languages.map((lang) => (
+              <span
+                key={lang}
+                className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+              >
+                {lang}
+              </span>
             ))}
+          </div>
+
+          <h3 className="mt-8 text-base font-bold text-slate-900 border-t border-slate-100 pt-6">
+            Bemorlar fikri va sharhlar
+          </h3>
+          <div className="mt-4 space-y-3">
+            {doctor.reviews.length === 0 ? (
+              <p className="text-xs text-slate-400">Hozircha sharhlar mavjud emas.</p>
+            ) : (
+              doctor.reviews.map((review) => (
+                <blockquote
+                  key={review.id}
+                  className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4"
+                >
+                  <p className="text-sm text-slate-800 leading-relaxed">&ldquo;{review.comment}&rdquo;</p>
+                  <footer className="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
+                    <span>{review.authorName}</span>
+                    <span>•</span>
+                    <span className="text-amber-500">★ {review.rating}/5</span>
+                    <span>•</span>
+                    <span>{review.date}</span>
+                  </footer>
+                </blockquote>
+              ))
+            )}
           </div>
         </div>
 
+        {/* Right aside schedule & booking */}
         <aside className="space-y-6">
-          <div className="rounded-2xl border border-Input_border bg-white p-6 shadow-cardShadow">
-            <h2 className="text-lg font-semibold">Ish grafigi</h2>
-            <ul className="mt-4 space-y-2 text-sm">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-base font-bold text-slate-900">Haftalik ish grafigi</h3>
+            <ul className="mt-4 space-y-2 text-xs">
               {WEEKDAY_ORDER.map((day) => {
                 const hours = doctor.schedule[day];
                 return (
-                  <li key={day} className="flex items-center justify-between gap-3">
-                    <span className="text-Navbar_Color">{WEEKDAY_LABELS[day]}</span>
-                    <span className="font-medium text-blackColor">
-                      {hours ? `${hours.start}–${hours.end}` : "Dam olish"}
+                  <li key={day} className="flex items-center justify-between gap-3 py-1 border-b border-slate-50 last:border-0">
+                    <span className="font-medium text-slate-500">{WEEKDAY_LABELS[day]}</span>
+                    <span className="font-bold text-slate-800">
+                      {hours ? `${hours.start}–${hours.end}` : "Dam olish kuni"}
                     </span>
                   </li>
                 );
@@ -125,13 +163,13 @@ export const DoctorDetailPage = ({ doctorId }: { doctorId: string }) => {
             </ul>
           </div>
 
-          <div className="rounded-2xl border border-Input_border bg-white p-6 shadow-cardShadow">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-Primary_app" />
-              <h2 className="text-lg font-semibold text-blackColor">Bo&apos;sh vaqtlar</h2>
+              <h3 className="text-base font-bold text-slate-900">Bo‘sh vaqtlar</h3>
             </div>
-            <p className="mt-1 text-xs text-Navbar_Color">
-              Sanani tanlab, shifokorning bo&apos;sh slotlarini ko&apos;ring
+            <p className="mt-1 text-xs text-slate-500">
+              Sanani tanlab, shifokorning bo‘sh slotlarini ko‘ring
             </p>
 
             <div className="mt-4">
@@ -146,28 +184,28 @@ export const DoctorDetailPage = ({ doctorId }: { doctorId: string }) => {
 
             <div className="mt-4">
               {!isWorking ? (
-                <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+                <p className="rounded-2xl bg-amber-50 p-3.5 text-xs text-amber-800 font-medium">
                   Bu kunda shifokor dam oladi. Boshqa ish kunini tanlang.
                 </p>
               ) : slots.isLoading ? (
-                <p className="text-xs text-Navbar_Color">Vaqtlar yuklanmoqda...</p>
+                <SlotSkeleton />
               ) : slots.data && slots.data.length > 0 ? (
                 <div>
-                  <p className="mb-2 text-xs font-medium text-Navbar_Color">Mavjud slotlar:</p>
+                  <p className="mb-2 text-xs font-semibold text-slate-600">Mavjud slotlar:</p>
                   <div className="grid grid-cols-3 gap-2">
                     {slots.data.map((slot) =>
                       slot.available ? (
                         <Link
                           key={slot.time}
                           href={`/book?doctorId=${doctor.id}&date=${selectedDate}&time=${slot.time}`}
-                          className="rounded-lg border border-Input_border bg-white py-1.5 text-center text-xs font-semibold text-blackColor transition hover:border-Primary_app hover:bg-Secondary hover:text-Primary_app"
+                          className="rounded-xl border border-slate-200 bg-white py-2 text-center text-xs font-bold text-slate-800 transition hover:border-Primary_app hover:bg-Primary_app/10 hover:text-Primary_app whitespace-nowrap"
                         >
                           {slot.time}
                         </Link>
                       ) : (
                         <span
                           key={slot.time}
-                          className="cursor-not-allowed rounded-lg border border-Input_border bg-ClrEEE py-1.5 text-center text-xs text-Navbar_Color line-through opacity-60"
+                          className="cursor-not-allowed rounded-xl border border-slate-100 bg-slate-100 py-2 text-center text-xs text-slate-400 line-through opacity-50 whitespace-nowrap"
                         >
                           {slot.time}
                         </span>
@@ -176,18 +214,17 @@ export const DoctorDetailPage = ({ doctorId }: { doctorId: string }) => {
                   </div>
                 </div>
               ) : (
-                <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
-                  Bu kunda bo&apos;sh vaqt qolmagan.
+                <p className="rounded-2xl bg-amber-50 p-3.5 text-xs text-amber-800 font-medium">
+                  Bu kunda bo‘sh vaqt qolmagan.
                 </p>
               )}
             </div>
 
-            <Button asChild className="mt-6 w-full">
-              <Link href={`/book?doctorId=${doctor.id}`}>Qabulga yozilish</Link>
+            <Button asChild className="mt-6 w-full rounded-2xl shadow-md shadow-Primary_app/20 shrink-0 whitespace-nowrap">
+              <Link href={`/book?doctorId=${doctor.id}&date=${selectedDate}`}>
+                Qabulga yozilish →
+              </Link>
             </Button>
-            <p className="mt-3 text-xs text-Navbar_Color">
-              Holatlar admin tizimida boshqariladi. Siz faqat yozila olasiz yoki o&apos;z qabulingizni bekor qila olasiz.
-            </p>
           </div>
         </aside>
       </div>

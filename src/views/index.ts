@@ -6,3 +6,5 @@ export { BookPage } from "./book/page";
 export { AppointmentsPage } from "./appointments/page";
 export { AboutPage } from "./about/page";
 export { ContactPage } from "./contact/page";
+export { AdminDashboardPage } from "./admin/dashboard";
+export { AdminLoginPage } from "./admin/login";

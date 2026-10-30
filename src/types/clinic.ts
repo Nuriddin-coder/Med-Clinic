@@ -26,6 +26,29 @@ export type DoctorSort =
 
 export type ServiceSort = "name-asc" | "price-asc" | "price-desc" | "duration-asc";
 
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+
 export interface WorkingHours {
   start: string;
   end: string;
@@ -115,13 +138,13 @@ export interface ContactMessage {
   createdAt: string;
 }
 
-export interface DoctorListParams {
+export interface DoctorListParams extends PaginationParams {
   search?: string;
   specialtyId?: string;
   sort?: DoctorSort;
 }
 
-export interface ServiceListParams {
+export interface ServiceListParams extends PaginationParams {
   search?: string;
   specialtyId?: string;
   sort?: ServiceSort;
@@ -148,7 +171,7 @@ export interface CancelAppointmentInput {
   phone: string;
 }
 
-export interface AppointmentListParams {
+export interface AppointmentListParams extends PaginationParams {
   phone: string;
 }
 
@@ -159,9 +182,28 @@ export interface ContactInput {
   message: string;
 }
 
+export interface LoginCredentials {
+  username: string;
+  password: string;
+}
+
+export interface AdminUser {
+  id: string;
+  username: string;
+  role: "admin" | "superadmin";
+  name?: string;
+}
+
+export interface AuthResponse {
+  token?: string;
+  accessToken?: string;
+  user?: AdminUser;
+  message?: string;
+}
+
 export interface ClinicApi {
   getClinicInfo: () => Promise<ClinicInfo>;
-  listSpecialties: () => Promise<Specialty[]>;
+  listSpecialties: (params?: PaginationParams) => Promise<Specialty[]>;
   listDoctors: (params?: DoctorListParams) => Promise<Doctor[]>;
   getDoctor: (id: string) => Promise<Doctor>;
   listServices: (params?: ServiceListParams) => Promise<ServiceItem[]>;
@@ -171,4 +213,5 @@ export interface ClinicApi {
   createAppointment: (input: CreateAppointmentInput) => Promise<Appointment>;
   cancelAppointment: (input: CancelAppointmentInput) => Promise<Appointment>;
   submitContact: (input: ContactInput) => Promise<ContactMessage>;
+  login?: (credentials: LoginCredentials) => Promise<AuthResponse>;
 }

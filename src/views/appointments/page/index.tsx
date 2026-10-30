@@ -8,10 +8,10 @@ import { AppointmentCard } from "@/components/clinic/appointment-card";
 import { ConfirmDialog } from "@/components/clinic/confirm-dialog";
 import { EmptyState } from "@/components/clinic/empty-state";
 import { PageHero } from "@/components/clinic/page-hero";
-import { Button } from "@/components/ui/button";
+import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FieldShell, TextInput } from "@/components/ui/field";
-import { PageLoader } from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/toast";
+import { AppointmentsSkeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   useAppointments,
   useCancelAppointment,
@@ -28,7 +28,6 @@ const LAST_PHONE_KEY = "medclinic:lastPhone";
 export const AppointmentsPage = () => {
   const searchParams = useSearchParams();
   const preset = searchParams.get("phone") ?? "";
-  const { notify } = useToast();
   const mounted = useMounted();
 
   const [phone, setPhone] = useState(preset ? normalizePhone(preset) : "");
@@ -98,98 +97,122 @@ export const AppointmentsPage = () => {
     }
   };
 
-  const onConfirmCancel = async () => {
-    if (!cancelId) {
-      return;
-    }
+  const handleConfirmCancel = async () => {
+    if (!cancelId) return;
     try {
       await cancel.mutateAsync({ id: cancelId, phone });
-      notify("success", "Qabul bekor qilindi");
+      toast.success("Qabul muvaffaqiyatli bekor qilindi");
       setCancelId(null);
+      void appointments.refetch();
     } catch (error) {
       const message =
-        error instanceof ClinicApiError ? error.message : "Bekor qilish amalga oshmadi";
-      notify("error", message);
+        error instanceof ClinicApiError ? error.message : "Bekor qilishda xatolik yuz berdi";
+      toast.error(message);
     }
   };
 
+  const appointmentToCancel = (appointments.data ?? []).find((item) => item.id === cancelId);
+
+  if (!mounted || doctors.isLoading || services.isLoading) {
+    return <AppointmentsSkeleton />;
+  }
+
   return (
-    <div>
+    <div className="min-h-[calc(100vh-72px-300px)]">
       <PageHero
         eyebrow="Bemor zonasi"
         title="Mening qabullarim"
-        description="Kirish yo'q. Telefon raqamingizni kiriting — shu raqamga yozilgan qabullar chiqadi."
+        description="Telefon raqamingiz orqali barcha faol va o‘tgan qabullaringizni kuzating hamda zarur bo‘lsa bekor qiling."
       />
-      <div className="container py-8">
-        <form
-          onSubmit={onLookup}
-          className="mb-8 rounded-2xl border border-Input_border bg-white p-4"
-        >
-          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+
+      <div className="container max-w-4xl py-10 px-4 sm:px-6 lg:px-8">
+        {!enabled ? (
+          <form
+            onSubmit={onLookup}
+            className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-4"
+          >
+            <h2 className="text-lg font-bold text-slate-900">
+              Qabullarni topish
+            </h2>
+            <p className="text-xs text-slate-500">
+              Qabulga yozilishda ko‘rsatgan telefon raqamingizni kiriting (+998XXXXXXXXX).
+            </p>
             <FieldShell
               label="Telefon raqam"
-              hint="Demo raqam: +998 90 123 45 67"
               error={form.formState.errors.phone?.message}
             >
-              <TextInput placeholder="+998 90 123 45 67" {...form.register("phone")} />
-            </FieldShell>
-            <div className="flex items-end gap-2">
-              <Button type="submit" className="w-full md:w-auto">
-                Qabullarni ko&apos;rish
-              </Button>
-              {enabled && (
-                <Button type="button" variant="outline" onClick={onChangePhone}>
-                  Boshqa raqam
-                </Button>
-              )}
-            </div>
-          </div>
-        </form>
-
-        {!enabled ? (
-          <EmptyState
-            title="Telefon raqamingizni kiriting"
-            hint="Yozilgan qabullar faqat shu raqam egasiga ko'rinadi. Demo uchun: +998901234567"
-          />
-        ) : appointments.isLoading || doctors.isLoading || services.isLoading ? (
-          <PageLoader label="Qabullar yuklanmoqda..." />
-        ) : appointments.isError ? (
-          <EmptyState
-            title="Qabullarni yuklab bo'lmadi"
-            hint={
-              appointments.error instanceof Error
-                ? appointments.error.message
-                : "Qayta urinib ko'ring"
-            }
-          />
-        ) : appointments.data && appointments.data.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {appointments.data.map((item) => (
-              <AppointmentCard
-                key={item.id}
-                appointment={item}
-                doctor={doctorMap[item.doctorId]}
-                service={serviceMap[item.serviceId]}
-                onCancel={setCancelId}
+              <TextInput
+                placeholder="+998901234567"
+                {...form.register("phone")}
+                autoFocus
               />
-            ))}
-          </div>
+            </FieldShell>
+            <PrimaryButton
+              type="submit"
+              size="lg"
+              className="rounded-2xl px-6 shrink-0 whitespace-nowrap"
+            >
+              Qabullarni ko‘rish →
+            </PrimaryButton>
+          </form>
         ) : (
-          <EmptyState
-            title="Qabul topilmadi"
-            hint="Boshqa raqam yoki avval yozilishni sinab ko'ring."
-          />
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase">Qidirilgan raqam:</p>
+                <p className="font-mono text-base font-bold text-slate-900">{phone}</p>
+              </div>
+              <SecondaryButton
+                size="sm"
+                onClick={onChangePhone}
+                className="rounded-xl shrink-0 whitespace-nowrap"
+              >
+                Boshqa raqam kiritish
+              </SecondaryButton>
+            </div>
+
+            {appointments.isLoading ? (
+              <div className="py-12 text-center text-sm text-slate-500 animate-pulse">
+                Qabullar yuklanmoqda...
+              </div>
+            ) : (appointments.data ?? []).length === 0 ? (
+              <EmptyState
+                title="Qabullar topilmadi"
+                description="Ushbu telefon raqamiga biriktirilgan faol qabullar mavjud emas."
+                actionLabel="Qabulga yozilish"
+                onAction={() => {
+                  window.location.href = "/book";
+                }}
+              />
+            ) : (
+              <div className="space-y-4">
+                {(appointments.data ?? []).map((apt) => (
+                  <AppointmentCard
+                    key={apt.id}
+                    appointment={apt}
+                    doctor={doctorMap[apt.doctorId]}
+                    service={serviceMap[apt.serviceId]}
+                    onCancel={(id) => setCancelId(id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       <ConfirmDialog
         open={Boolean(cancelId)}
-        title="Qabulni bekor qilasizmi?"
-        description="Faqat kutilayotgan yoki tasdiqlangan qabulni bekor qilish mumkin. Bu amalni administrator emas, siz bajarasiz."
-        confirmLabel="Ha, bekor qilish"
-        loading={cancel.isPending}
         onClose={() => setCancelId(null)}
-        onConfirm={onConfirmCancel}
+        onConfirm={handleConfirmCancel}
+        loading={cancel.isPending}
+        confirmLabel="Bekor qilish"
+        title="Qabulni bekor qilish"
+        description={
+          appointmentToCancel
+            ? `${appointmentToCancel.date} soat ${appointmentToCancel.time} dagi qabulni bekor qilishni tasdiqlaysizmi?`
+            : "Qabulni bekor qilishni tasdiqlaysizmi?"
+        }
       />
     </div>
   );

@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { EmptyState } from "@/components/clinic/empty-state";
 import { PageHero } from "@/components/clinic/page-hero";
 import { ServiceCard } from "@/components/clinic/service-card";
-import { Button } from "@/components/ui/button";
+import { SpecialtyIcon } from "@/components/clinic/specialty-icon";
+import { SecondaryButton } from "@/components/ui/button";
 import { TextInput } from "@/components/ui/field";
 import {
   Select,
@@ -14,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageLoader } from "@/components/ui/skeleton";
+import { ServicesSkeleton } from "@/components/ui/skeleton";
 import { useQueryParams } from "@/hooks";
 import { useServices, useSpecialties } from "@/hooks/clinic/use-clinic-query";
 import { ServiceSort } from "@/types/clinic";
@@ -58,19 +59,29 @@ export const ServicesPage = () => {
     });
   };
 
-  const loading = services.isLoading || specialties.isLoading;
+  const handleReset = () => {
+    setQueryParams({});
+  };
+
+  if (services.isLoading || specialties.isLoading) {
+    return <ServicesSkeleton />;
+  }
+
+  const list = services.data ?? [];
+  const hasFilter = Boolean(search || specialty || (sort && sort !== "name-asc"));
 
   return (
-    <div>
+    <div className="min-h-[calc(100vh-72px-300px)]">
       <PageHero
         eyebrow="Narxlar"
-        title="Xizmatlar"
-        description="Konsultatsiya, check-up va muolajalar. Filter va saralash real vaqtda ishlaydi."
+        title="Klinika xizmatlari"
+        description="Konsultatsiya, laboratoriya tekshiruvlari va muolajalar narxnomasi."
       />
-      <div className="container py-8">
-        <div className="mb-6 grid gap-3 rounded-2xl border border-Input_border bg-white p-4 md:grid-cols-4">
+
+      <div className="container py-8 px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-4">
           <TextInput
-            placeholder="Xizmat nomi"
+            placeholder="Xizmat nomi..."
             value={search}
             onChange={(event) => update({ q: event.target.value })}
             aria-label="Xizmat nomi"
@@ -81,10 +92,10 @@ export const ServicesPage = () => {
             onValueChange={(val) => update({ specialty: val === "all" ? "" : val })}
           >
             <SelectTrigger className="w-full" aria-label="Mutaxassislik">
-              <SelectValue placeholder="Barcha yo'nalishlar" />
+              <SelectValue placeholder="Barcha yo‘nalishlar" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Barcha yo'nalishlar</SelectItem>
+              <SelectItem value="all">Barcha yo‘nalishlar</SelectItem>
               {(specialties.data ?? []).map((item) => (
                 <SelectItem key={item.id} value={item.id}>
                   {item.name}
@@ -98,36 +109,43 @@ export const ServicesPage = () => {
             onValueChange={(val) => update({ sort: val })}
           >
             <SelectTrigger className="w-full" aria-label="Saralash">
-              <SelectValue placeholder="Saralash" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {sortOptions.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
+              {sortOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Button variant="outline" onClick={() => setQueryParams({})}>
-            Filtrlarni tozalash
-          </Button>
+          <SecondaryButton
+            onClick={handleReset}
+            disabled={!hasFilter}
+            className="w-full rounded-xl shrink-0 whitespace-nowrap"
+          >
+            Filtrni tozalash
+          </SecondaryButton>
         </div>
 
-        {loading ? (
-          <PageLoader />
-        ) : services.data && services.data.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {services.data.map((service) => (
+        {list.length === 0 ? (
+          <EmptyState
+            title="Xizmat topilmadi"
+            description="Boshqa so‘z bilan qidiring yoki filtrni bekor qiling."
+            actionLabel="Filtrni tozalash"
+            onAction={handleReset}
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {list.map((service) => (
               <ServiceCard
                 key={service.id}
                 service={service}
-                specialty={(specialties.data ?? []).find((item) => item.id === service.specialtyId)}
+                specialties={specialties.data ?? []}
               />
             ))}
           </div>
-        ) : (
-          <EmptyState title="Xizmat topilmadi" hint="Boshqa so‘z yoki yo‘nalishni sinab ko‘ring." />
         )}
       </div>
     </div>

@@ -2,6 +2,7 @@ import { NextIntlClientProvider, useMessages } from "next-intl";
 
 import { Providers } from "@/providers";
 import { BaseLayout } from "@/components";
+import { SonnerToaster } from "@/components/ui/sonner-toaster";
 import { IChildren, IParams } from "@/types";
 import "@/styles/globals.scss";
 
@@ -22,9 +23,11 @@ export default function RootLayout({
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
         />
-        <title>MED Clinic</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* <link rel="icon" href="/favicon.ico?v=2" /> */}
+        <title>MED Clinic — Zamonaviy Tibbiyot Markazi</title>
+        <meta
+          name="description"
+          content="Online shifokor qabuliga navbatsiz yozilish, yuqori malakali mutaxassislar va zamonaviy diagnostika xizmatlari."
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link 
@@ -32,19 +35,14 @@ export default function RootLayout({
           rel="stylesheet" 
         />
         <meta property="og:image" content="/favicon.ico?v=2" />
-        <meta property="og:image:type" content="image/jpeg" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
         <meta property="og:type" content="website" />
-
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="robots" content="index, follow, max-image-preview:large" />
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#0284c7" />
       </head>
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <Providers>
             <BaseLayout>{children}</BaseLayout>
+            <SonnerToaster />
           </Providers>
         </NextIntlClientProvider>
       </body>

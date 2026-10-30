@@ -10,7 +10,7 @@ export const Footer = () => (
           MED <span className="text-[#c9a6ff]">Clinic</span>
         </p>
         <p className="mt-3 max-w-md text-sm leading-6 text-white/70">
-          Onlayn tibbiy xizmatlar: shifokor tanlang, bo‘sh vaqtni ko‘ring va qabulga yoziling.
+          Onlayn tibbiy xizmatlar: shifokor tanlang, bo‘sh vaqtni ko‘ring va navbatsiz qabulga yoziling.
           Akkaunt ochish shart emas — faqat telefon raqamingiz kifoya.
         </p>
       </div>
@@ -27,7 +27,10 @@ export const Footer = () => (
             Mening qabullarim
           </Link>
           <Link href="/book" className="hover:text-[#c9a6ff]">
-            Yozilish
+            Qabulga yozilish
+          </Link>
+          <Link href="/admin" className="hover:text-[#c9a6ff] text-white/60">
+            Admin boshqaruv paneli
           </Link>
         </div>
       </div>

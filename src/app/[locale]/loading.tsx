@@ -1,5 +1,5 @@
-import { PageLoader } from "@/components/ui/skeleton";
+import { HomeSkeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
-  return <PageLoader label="Yuklanmoqda..." />;
+  return <HomeSkeleton />;
 }
