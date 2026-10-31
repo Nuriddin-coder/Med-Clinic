@@ -74,9 +74,7 @@ export const HomePage = () => {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-72px-300px)]">
-      {/* 1. HERO BANNER */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-50/70 via-white to-emerald-50/50 py-16 lg:py-24">
-        {/* Background decorative circles */}
         <div className="pointer-events-none absolute -right-20 -top-20 h-96 w-96 rounded-full bg-Primary_app/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-20 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
 
@@ -102,7 +100,6 @@ export const HomePage = () => {
               {clinic?.about}
             </p>
 
-            {/* Tezkor qidiruv */}
             <form onSubmit={handleSearchSubmit} className="mt-8 flex max-w-xl gap-2 items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -119,7 +116,6 @@ export const HomePage = () => {
               </PrimaryButton>
             </form>
 
-            {/* Asosiy tugmalar */}
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <PrimaryButton asChild size="lg" className="rounded-2xl shrink-0 whitespace-nowrap">
                 <Link href="/book">Qabulga yozilish</Link>
@@ -129,7 +125,6 @@ export const HomePage = () => {
               </SecondaryButton>
             </div>
 
-            {/* Kichik afzalliklar */}
             <div className="mt-8 flex flex-wrap items-center gap-6 text-xs font-medium text-slate-600">
               <span className="flex items-center gap-1.5 whitespace-nowrap">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -146,7 +141,6 @@ export const HomePage = () => {
             </div>
           </div>
 
-          {/* 2. STATISTIKA BLOKI (/clinic ma'lumotlaridan) */}
           <div className="lg:col-span-5">
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-xl shadow-slate-200/50 backdrop-blur transition hover:-translate-y-1">
@@ -193,7 +187,6 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 3. QANDAY ISHLAYDI BLOKI */}
       <section className="container py-16 px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <p className="text-xs font-bold uppercase tracking-wider text-Primary_app">
@@ -226,7 +219,6 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 4. MUTAXASSISLIKLAR (SPECIALTIES) - MOS IKONLAR BILAN */}
       <section className="bg-slate-50/60 py-16">
         <div className="container px-4 sm:px-6 lg:px-8">
           <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
@@ -273,7 +265,6 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 5. ENG YUQORI REYTINGLI SHIFOKORLAR */}
       <section className="container py-16 px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -303,7 +294,6 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 6. XIZMATLAR VA NARXLAR PREVIEW */}
       <section className="bg-slate-50/60 py-16">
         <div className="container px-4 sm:px-6 lg:px-8">
           <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
@@ -349,11 +339,9 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 7. ALOQA VA XARITA BLOKI */}
       <section className="container py-16 px-4 sm:px-6 lg:px-8">
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
           <div className="grid lg:grid-cols-12">
-            {/* Kontakt ma'lumotlari */}
             <div className="p-8 sm:p-10 lg:col-span-5 flex flex-col justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-Primary_app">
@@ -436,7 +424,6 @@ export const HomePage = () => {
               </div>
             </div>
 
-            {/* Interaktiv Xarita */}
             <div className="relative min-h-[360px] bg-slate-100 lg:col-span-7">
               <iframe
                 title="Clinic Location"
@@ -450,7 +437,6 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 8. QABULGA CHAQIRUV BANNERI */}
       <section className="container pb-16 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-start justify-between gap-6 rounded-3xl bg-gradient-to-r from-Primary_app to-teal-700 p-8 text-white shadow-xl shadow-Primary_app/20 md:flex-row md:items-center md:p-12">
           <div>

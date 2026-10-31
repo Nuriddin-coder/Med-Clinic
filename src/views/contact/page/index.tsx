@@ -52,7 +52,6 @@ export const ContactPage = () => {
       />
 
       <div className="container grid gap-8 py-10 lg:grid-cols-2 px-4 sm:px-6 lg:px-8">
-        {/* Form */}
         <form
           onSubmit={onSubmit}
           className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm"
@@ -89,7 +88,6 @@ export const ContactPage = () => {
           </Button>
         </form>
 
-        {/* Contact Info and Map */}
         <div className="space-y-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-5">
             <h2 className="text-xl font-bold text-slate-900">{clinic?.name}</h2>

@@ -20,7 +20,6 @@ const setRequestHeaders = (
     config.headers = new AxiosHeaders();
   }
 
-  // Don't override Content-Type for FormData requests
   if (!(config.data instanceof FormData)) {
     config.headers.set("Content-Type", "application/json");
   }

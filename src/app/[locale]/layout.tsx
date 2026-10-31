@@ -4,6 +4,7 @@ import { Providers } from "@/providers";
 import { BaseLayout } from "@/components";
 import { SonnerToaster } from "@/components/ui/sonner-toaster";
 import { IChildren, IParams } from "@/types";
+import { manrope } from "@/lib/fonts";
 import "@/styles/globals.scss";
 
 interface IRootLayout extends IChildren {
@@ -17,26 +18,23 @@ export default function RootLayout({
   const messages = useMessages();
 
   return (
-    <html lang={locale} className="font-manrope">
+    <html lang={locale} className={`${manrope.variable} ${manrope.className} font-manrope`}>
       <head>
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+          content="width=device-width, initial-scale=1"
         />
         <title>MED Clinic — Zamonaviy Tibbiyot Markazi</title>
         <meta
           name="description"
           content="Online shifokor qabuliga navbatsiz yozilish, yuqori malakali mutaxassislar va zamonaviy diagnostika xizmatlari."
         />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link 
-          href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" 
-          rel="stylesheet" 
-        />
-        <meta property="og:image" content="/favicon.ico?v=2" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta property="og:image" content="/icon-512.png" />
         <meta property="og:type" content="website" />
-        <meta name="theme-color" content="#0284c7" />
+        <meta name="theme-color" content="#872AFF" />
       </head>
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>

@@ -39,11 +39,9 @@ export const DoctorsListPage = () => {
   const sortParam = searchParams.get("sort") ?? "rating-desc";
   const sort: DoctorSort = isSort(sortParam) ? sortParam : "rating-desc";
 
-  // Local input state for 300ms debounce
   const [searchInput, setSearchInput] = useState(search);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync local state if URL param changes externally
   useEffect(() => {
     setSearchInput(search);
   }, [search]);
@@ -115,7 +113,6 @@ export const DoctorsListPage = () => {
       />
 
       <div className="container py-8 px-4 sm:px-6 lg:px-8">
-        {/* Filters bar */}
         <div className="mb-8 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-4">
           <TextInput
             placeholder="Shifokor ismi..."
@@ -166,7 +163,6 @@ export const DoctorsListPage = () => {
           </SecondaryButton>
         </div>
 
-        {/* Results */}
         {list.length === 0 ? (
           <EmptyState
             title="Mos shifokor topilmadi"

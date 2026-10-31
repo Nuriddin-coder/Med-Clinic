@@ -21,7 +21,6 @@ export const DoctorDetailPage = ({ doctorId }: { doctorId: string }) => {
 
   const doctor = doctorQuery.data;
 
-  // Find a matching service for slot calculation
   const primaryService = useMemo(() => {
     if (!doctor || !services.data) return undefined;
     return (
@@ -72,7 +71,6 @@ export const DoctorDetailPage = ({ doctorId }: { doctorId: string }) => {
       <PageHero eyebrow="Shifokor" title={doctor.fullName} description={doctor.title} />
 
       <div className="container grid gap-8 py-10 lg:grid-cols-[1.4fr_0.8fr] px-4 sm:px-6 lg:px-8">
-        {/* Left main content */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
           <div className="flex flex-col gap-6 sm:flex-row items-start">
             <InitialsAvatar initials={doctor.photoInitials} hue={doctor.photoHue} size="lg" />
@@ -144,7 +142,6 @@ export const DoctorDetailPage = ({ doctorId }: { doctorId: string }) => {
           </div>
         </div>
 
-        {/* Right aside schedule & booking */}
         <aside className="space-y-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-base font-bold text-slate-900">Haftalik ish grafigi</h3>

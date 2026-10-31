@@ -12,7 +12,6 @@ import {
   getServices,
   getSlots,
   getSpecialties,
-  loginAdmin,
   submitContact,
 } from "@/lib/api";
 
@@ -110,14 +109,6 @@ export const restClinicApi: ClinicApi = {
   submitContact: async (input) => {
     try {
       return await submitContact(input);
-    } catch (error: any) {
-      throw new ClinicApiError(error.message, error.statusCode);
-    }
-  },
-
-  login: async (credentials) => {
-    try {
-      return await loginAdmin(credentials);
     } catch (error: any) {
       throw new ClinicApiError(error.message, error.statusCode);
     }

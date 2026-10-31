@@ -39,7 +39,6 @@ export const AppointmentsPage = () => {
     defaultValues: { phone: preset || "+998" },
   });
 
-  // On mount: if no URL preset, read saved phone from localStorage
   useEffect(() => {
     if (mounted && !preset) {
       try {
@@ -50,7 +49,6 @@ export const AppointmentsPage = () => {
           form.setValue("phone", saved);
         }
       } catch {
-        // ignore localStorage errors
       }
     }
   }, [mounted, preset, form]);
@@ -60,13 +58,11 @@ export const AppointmentsPage = () => {
   const services = useServices({ sort: "name-asc" });
   const cancel = useCancelAppointment();
 
-  // Persist phone to localStorage after successful lookup
   useEffect(() => {
     if (enabled && phone && appointments.data) {
       try {
         window.localStorage.setItem(LAST_PHONE_KEY, phone);
       } catch {
-        // ignore localStorage errors
       }
     }
   }, [enabled, phone, appointments.data]);
@@ -93,7 +89,6 @@ export const AppointmentsPage = () => {
     try {
       window.localStorage.removeItem(LAST_PHONE_KEY);
     } catch {
-      // ignore
     }
   };
 

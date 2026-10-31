@@ -2,7 +2,6 @@ import axios, { AxiosError, AxiosInstance } from "axios";
 import {
   Appointment,
   AppointmentListParams,
-  AuthResponse,
   CancelAppointmentInput,
   ClinicInfo,
   ContactInput,
@@ -10,7 +9,6 @@ import {
   CreateAppointmentInput,
   Doctor,
   DoctorListParams,
-  LoginCredentials,
   PaginatedResponse,
   PaginationParams,
   ServiceItem,
@@ -34,19 +32,6 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request Interceptor (attach token if available in localStorage/session)
-apiClient.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token =
-      localStorage.getItem("med_token") || sessionStorage.getItem("med_token");
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
-
-// Helper for error formatting
 export class ApiError extends Error {
   statusCode?: number;
   data?: unknown;
@@ -76,7 +61,6 @@ const formatError = (error: unknown): never => {
   throw new ApiError("Kutilmagan xatolik yuz berdi");
 };
 
-// Clean undefined/empty parameters
 const cleanParams = (params?: Record<string, unknown>) => {
   if (!params) return undefined;
   const cleaned: Record<string, string | number> = {};
@@ -88,11 +72,6 @@ const cleanParams = (params?: Record<string, unknown>) => {
   return cleaned;
 };
 
-/* =========================================================================
- * CLINIC API FUNCTIONS
- * ========================================================================= */
-
-// 1. GET /clinic
 export const getClinicInfo = async (): Promise<ClinicInfo> => {
   try {
     const response = await apiClient.get<ClinicInfo>("/clinic");
@@ -102,7 +81,6 @@ export const getClinicInfo = async (): Promise<ClinicInfo> => {
   }
 };
 
-// 2. GET /specialties
 export const getSpecialties = async (
   params?: PaginationParams
 ): Promise<PaginatedResponse<Specialty>> => {
@@ -127,7 +105,6 @@ export const getSpecialties = async (
   }
 };
 
-// 3. GET /doctors
 export const getDoctors = async (
   params?: DoctorListParams
 ): Promise<PaginatedResponse<Doctor>> => {
@@ -160,7 +137,6 @@ export const getDoctors = async (
   }
 };
 
-// 4. GET /doctors/:id
 export const getDoctorById = async (id: string): Promise<Doctor> => {
   try {
     const response = await apiClient.get<Doctor>(`/doctors/${id}`);
@@ -170,7 +146,6 @@ export const getDoctorById = async (id: string): Promise<Doctor> => {
   }
 };
 
-// 5. GET /services
 export const getServices = async (
   params?: ServiceListParams
 ): Promise<PaginatedResponse<ServiceItem>> => {
@@ -203,7 +178,6 @@ export const getServices = async (
   }
 };
 
-// 6. GET /services/:id
 export const getServiceById = async (id: string): Promise<ServiceItem> => {
   try {
     const response = await apiClient.get<ServiceItem>(`/services/${id}`);
@@ -213,7 +187,6 @@ export const getServiceById = async (id: string): Promise<ServiceItem> => {
   }
 };
 
-// 7. GET /slots
 export const getSlots = async (params: SlotListParams): Promise<TimeSlot[]> => {
   try {
     const response = await apiClient.get<TimeSlot[]>("/slots", {
@@ -229,7 +202,6 @@ export const getSlots = async (params: SlotListParams): Promise<TimeSlot[]> => {
   }
 };
 
-// 8. GET /appointments
 export const getAppointments = async (
   phone: string,
   params?: PaginationParams
@@ -261,7 +233,6 @@ export const getAppointments = async (
   }
 };
 
-// 9. POST /appointments
 export const createAppointment = async (
   input: CreateAppointmentInput
 ): Promise<Appointment> => {
@@ -282,7 +253,6 @@ export const createAppointment = async (
   }
 };
 
-// 10. PATCH /appointments/:id/cancel
 export const cancelAppointment = async (
   id: string,
   phone: string
@@ -300,7 +270,6 @@ export const cancelAppointment = async (
   }
 };
 
-// 11. POST /contact
 export const submitContact = async (
   input: ContactInput
 ): Promise<ContactMessage> => {
@@ -312,24 +281,6 @@ export const submitContact = async (
       message: input.message.trim(),
     };
     const response = await apiClient.post<ContactMessage>("/contact", payload);
-    return response.data;
-  } catch (error) {
-    return formatError(error);
-  }
-};
-
-// 12. POST /auth/login
-export const loginAdmin = async (
-  credentials: LoginCredentials
-): Promise<AuthResponse> => {
-  try {
-    const response = await apiClient.post<AuthResponse>("/auth/login", credentials);
-    if (response.data?.token || response.data?.accessToken) {
-      const token = response.data.token || response.data.accessToken;
-      if (typeof window !== "undefined" && token) {
-        localStorage.setItem("med_token", token);
-      }
-    }
     return response.data;
   } catch (error) {
     return formatError(error);
@@ -348,8 +299,6 @@ export const api = {
   createAppointment,
   cancelAppointment,
   submitContact,
-  loginAdmin,
 };
 
 export default api;
-

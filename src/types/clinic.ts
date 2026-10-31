@@ -182,25 +182,6 @@ export interface ContactInput {
   message: string;
 }
 
-export interface LoginCredentials {
-  username: string;
-  password: string;
-}
-
-export interface AdminUser {
-  id: string;
-  username: string;
-  role: "admin" | "superadmin";
-  name?: string;
-}
-
-export interface AuthResponse {
-  token?: string;
-  accessToken?: string;
-  user?: AdminUser;
-  message?: string;
-}
-
 export interface ClinicApi {
   getClinicInfo: () => Promise<ClinicInfo>;
   listSpecialties: (params?: PaginationParams) => Promise<Specialty[]>;
@@ -213,5 +194,4 @@ export interface ClinicApi {
   createAppointment: (input: CreateAppointmentInput) => Promise<Appointment>;
   cancelAppointment: (input: CancelAppointmentInput) => Promise<Appointment>;
   submitContact: (input: ContactInput) => Promise<ContactMessage>;
-  login?: (credentials: LoginCredentials) => Promise<AuthResponse>;
 }

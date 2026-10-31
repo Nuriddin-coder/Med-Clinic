@@ -51,13 +51,11 @@ export const BookPage = () => {
   const presetDate = searchParams.get("date") ?? "";
   const presetTime = searchParams.get("time") ?? "";
 
-  // Queries
   const specialties = useSpecialties();
   const doctors = useDoctors({ sort: "rating-desc" });
   const services = useServices({ sort: "price-asc" });
   const createAppointment = useCreateAppointment();
 
-  // Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [selectedSpecialtyId, setSelectedSpecialtyId] = useState<string>("");
   const [selectedServiceId, setSelectedServiceId] = useState<string>(presetServiceId);
@@ -65,16 +63,13 @@ export const BookPage = () => {
   const [selectedDate, setSelectedDate] = useState<string>(presetDate || todayIsoDate());
   const [selectedTime, setSelectedTime] = useState<string>(presetTime);
 
-  // Patient inputs
-  const [patientName, setPatientName] = useState<string>("");
+  const [patientName, setPatientName] = useState<string>("" );
   const [patientPhone, setPatientPhone] = useState<string>("+998");
   const [notes, setNotes] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Success state
   const [confirmedAppointment, setConfirmedAppointment] = useState<Appointment | null>(null);
 
-  // Selected entities
   const selectedDoctor = useMemo(
     () => (doctors.data ?? []).find((d) => d.id === selectedDoctorId),
     [doctors.data, selectedDoctorId]
@@ -90,7 +85,6 @@ export const BookPage = () => {
     [specialties.data, selectedSpecialtyId]
   );
 
-  // If preset doctor is given in URL, auto-set specialty and move to step 2/3
   useEffect(() => {
     if (presetDoctorId && doctors.data) {
       const doc = doctors.data.find((d) => d.id === presetDoctorId);
@@ -101,18 +95,16 @@ export const BookPage = () => {
     }
   }, [presetDoctorId, doctors.data]);
 
-  // Filter services by selected specialty
   const availableServices = useMemo(() => {
     const all = services.data ?? [];
     if (!selectedSpecialtyId) return all;
     return all.filter((s) => s.specialtyId === selectedSpecialtyId);
   }, [services.data, selectedSpecialtyId]);
 
-  // Filter doctors by selected specialty or service
   const availableDoctors = useMemo(() => {
     const all = doctors.data ?? [];
     if (!selectedSpecialtyId) {
-      if (selectedService) {
+      if (selectedService && selectedService.specialtyId) {
         return all.filter((d) => d.specialtyIds.includes(selectedService.specialtyId));
       }
       return all;
@@ -120,29 +112,27 @@ export const BookPage = () => {
     return all.filter((d) => d.specialtyIds.includes(selectedSpecialtyId));
   }, [doctors.data, selectedSpecialtyId, selectedService]);
 
-  // Fetch slots for selected doctor + date + service
   const isDoctorWorkingToday = useMemo(() => {
     if (!selectedDoctor || !selectedDate) return false;
     const weekday = weekdayFromDate(selectedDate);
-    return Boolean(selectedDoctor.schedule[weekday]);
+    const schedule = selectedDoctor.schedule[weekday];
+    return Boolean(schedule && schedule.start && schedule.end);
   }, [selectedDoctor, selectedDate]);
 
   const slots = useSlots(
     {
       doctorId: selectedDoctorId,
       date: selectedDate,
-      serviceId: selectedServiceId || "srv-consult-therapy",
+      serviceId: selectedServiceId,
     },
     Boolean(selectedDoctorId && selectedDate && isDoctorWorkingToday)
   );
 
-  // Check valid available slots
   const availableSlots = useMemo(() => {
     if (!slots.data) return [];
     return slots.data.filter((slot) => slot.available);
   }, [slots.data]);
 
-  // Restore phone from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("medclinic:lastPhone");
@@ -150,7 +140,6 @@ export const BookPage = () => {
         setPatientPhone(saved);
       }
     } catch {
-      // ignore
     }
   }, []);
 
@@ -158,7 +147,6 @@ export const BookPage = () => {
     return <BookPageSkeleton />;
   }
 
-  // --- Step Navigation handlers ---
   const handleNextFromStep1 = () => {
     if (!selectedServiceId) {
       toast.error("Iltimos, avval kerakli xizmatni tanlang!");
@@ -177,40 +165,45 @@ export const BookPage = () => {
 
   const handleNextFromStep3 = () => {
     if (!selectedDate) {
-      toast.error("Iltimos, sanani tanlang!");
+      toast.error("Iltimos, qabul sanasini tanlang!");
       return;
     }
     if (!selectedTime) {
-      toast.error("Iltimos, bo‘sh vaqt slotini tanlang!");
+      toast.error("Iltimos, qabul vaqtini (slotni) tanlang!");
       return;
     }
     setCurrentStep(4);
   };
 
+  const validateStep4 = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!patientName.trim()) {
+      newErrors.name = "Ism familiyangizni kiritishingiz shart";
+    } else if (patientName.trim().length < 3) {
+      newErrors.name = "Ism kamida 3 ta harfdan iborat bo‘lishi kerak";
+    }
+
+    const cleanPhone = normalizePhone(patientPhone);
+    if (!cleanPhone) {
+      newErrors.phone = "Telefon raqami kiritilishi shart";
+    } else if (!/^\+998\d{9}$/.test(cleanPhone)) {
+      newErrors.phone = "Telefon raqami noto‘g‘ri (+998XXXXXXXXX formatida bo‘lishi kerak)";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: Record<string, string> = {};
-
-    if (!patientName.trim() || patientName.trim().length < 3) {
-      newErrors.name = "Ism familiya kamida 3 ta belgidan iborat bo‘lishi kerak";
-    }
-
-    const normPhone = normalizePhone(patientPhone);
-    const phoneRegex = /^\+998\d{9}$/;
-    if (!phoneRegex.test(normPhone)) {
-      newErrors.phone = "Telefon raqami +998XXXXXXXXX formatida (9 ta raqam) bo‘lishi kerak";
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      toast.error("Iltimos, formadagi xatoliklarni to‘g‘rilang");
+    if (!validateStep4()) {
+      toast.error("Iltimos, barcha maydonlarni to‘g‘ri to‘ldiring!");
       return;
     }
 
-    setErrors({});
-
     try {
-      const result = await createAppointment.mutateAsync({
+      const normPhone = normalizePhone(patientPhone);
+      const res = await createAppointment.mutateAsync({
         doctorId: selectedDoctorId,
         serviceId: selectedServiceId,
         date: selectedDate,
@@ -220,33 +213,28 @@ export const BookPage = () => {
         notes: notes.trim(),
       });
 
-      // Persist phone
       try {
         localStorage.setItem("medclinic:lastPhone", normPhone);
       } catch {
-        // ignore
       }
 
       toast.success("Qabul muvaffaqiyatli rasmiylashtirildi!");
-      setConfirmedAppointment(result);
-    } catch (error: any) {
-      toast.error(error.message || "Qabulni rasmiylashtirishda xatolik yuz berdi");
-      void slots.refetch();
+      setConfirmedAppointment(res);
+    } catch (err: any) {
+      toast.error(err?.message || "Qabulni rasmiylashtirishda xatolik yuz berdi");
     }
   };
 
-  // --- If Appointment Confirmed (Success Check Page) ---
   if (confirmedAppointment) {
     return (
       <div className="min-h-[calc(100vh-72px-300px)]">
         <PageHero
-          eyebrow="Tasdiqlandi"
-          title="Qabul muvaffaqiyatli rasmiylashtirildi!"
-          description="Sizning qabulingiz tizimga kiritildi. Navbat vaqtida klinikamizga tashrif buyuring."
+          eyebrow="Tasdiqnoma"
+          title="Qabul muvaffaqiyatli band qilindi!"
+          description="Sizning qabulingiz klinika tizimida ro‘yxatga olindi. Ma’lumotlarni saqlab qo‘ying."
         />
         <div className="container py-12 px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-            {/* Receipt Header */}
             <div className="bg-gradient-to-r from-Primary_app to-teal-600 px-8 py-8 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -255,55 +243,54 @@ export const BookPage = () => {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold">MED Clinic Kvitansiyasi</h2>
-                    <p className="text-xs text-white/80">Onlayn qabul chiptasi</p>
+                    <p className="text-xs text-white/90">Onlayn qabul chiptasi</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <span className="inline-block rounded-full bg-emerald-500/30 px-3 py-1 text-xs font-semibold backdrop-blur whitespace-nowrap">
                     Tasdiqlangan
                   </span>
-                  <p className="mt-1 font-mono text-xs text-white/80 whitespace-nowrap">
+                  <p className="mt-1 font-mono text-xs text-white/90 whitespace-nowrap">
                     ID: {confirmedAppointment.id}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Receipt Body */}
             <div className="space-y-6 p-8">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-400">Bemor</p>
+                  <p className="text-xs font-bold uppercase text-slate-600">Bemor</p>
                   <p className="mt-1 font-bold text-slate-800">
                     {confirmedAppointment.patientName}
                   </p>
-                  <p className="font-mono text-xs text-slate-500">
+                  <p className="font-mono text-xs text-slate-600">
                     {confirmedAppointment.patientPhone}
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-400">Shifokor</p>
+                  <p className="text-xs font-bold uppercase text-slate-600">Shifokor</p>
                   <p className="mt-1 font-bold text-slate-800">
                     {selectedDoctor?.fullName || "Mutaxassis shifokor"}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-600">
                     {selectedDoctor?.title}
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-400">Qabul sanasi va vaqti</p>
+                  <p className="text-xs font-bold uppercase text-slate-600">Qabul sanasi va vaqti</p>
                   <p className="mt-1 font-bold text-Primary_app">
                     {formatClinicDate(confirmedAppointment.date)} ({confirmedAppointment.time})
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-600">
                     Davomiyligi: ~{confirmedAppointment.durationMinutes} daqiqa
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                  <p className="text-xs font-semibold uppercase text-slate-400">Xizmat va to‘lov</p>
+                  <p className="text-xs font-bold uppercase text-slate-600">Xizmat va to‘lov</p>
                   <p className="mt-1 font-bold text-slate-800">
                     {selectedService?.name || "Konsultatsiya"}
                   </p>
@@ -315,21 +302,19 @@ export const BookPage = () => {
 
               {confirmedAppointment.notes ? (
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-xs">
-                  <span className="font-semibold text-slate-600">Izoh: </span>
-                  <span className="text-slate-500">{confirmedAppointment.notes}</span>
+                  <span className="font-semibold text-slate-700">Izoh: </span>
+                  <span className="text-slate-600">{confirmedAppointment.notes}</span>
                 </div>
               ) : null}
 
-              {/* Instructions */}
               <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-blue-900">
                 <p className="font-semibold">Eslatma:</p>
-                <p className="mt-1 leading-relaxed text-blue-800">
+                <p className="mt-1 leading-relaxed text-blue-900">
                   Iltimos, qabul vaqtidan 10 daqiqa oldin klinikaga yetib keling. Qabulingizni o‘zgartirish yoki bekor qilish zarurati tug‘ilsa,
                   &ldquo;Mening qabullarim&rdquo; bo‘limidan telefon raqamingiz orqali amalga oshirishingiz mumkin.
                 </p>
               </div>
 
-              {/* Action buttons */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
                 <Button
                   variant="outline"
@@ -367,7 +352,6 @@ export const BookPage = () => {
     );
   }
 
-  // --- Step Indicator Data ---
   const stepLabels = [
     { number: 1, title: "Xizmat" },
     { number: 2, title: "Shifokor" },
@@ -384,7 +368,6 @@ export const BookPage = () => {
       />
 
       <div className="container py-10 px-4 sm:px-6 lg:px-8">
-        {/* Step Indicator Progress Bar */}
         <div className="mx-auto mb-10 max-w-3xl">
           <div className="grid grid-cols-4 gap-2 sm:gap-4">
             {stepLabels.map((s) => {
@@ -393,6 +376,9 @@ export const BookPage = () => {
               return (
                 <button
                   key={s.number}
+                  type="button"
+                  aria-label={`Qadam ${s.number}: ${s.title}`}
+                  aria-current={isCurrent ? "step" : undefined}
                   disabled={!isPast && !isCurrent}
                   onClick={() => {
                     if (isPast) setCurrentStep(s.number as WizardStep);
@@ -402,7 +388,7 @@ export const BookPage = () => {
                       ? "text-Primary_app"
                       : isPast
                       ? "cursor-pointer text-emerald-600 hover:text-emerald-700"
-                      : "cursor-not-allowed text-slate-400"
+                      : "cursor-not-allowed text-slate-500"
                   }`}
                 >
                   <div
@@ -411,7 +397,7 @@ export const BookPage = () => {
                         ? "bg-emerald-500 text-white"
                         : isCurrent
                         ? "bg-Primary_app text-white ring-4 ring-Primary_app/20"
-                        : "bg-slate-100 text-slate-500"
+                        : "bg-slate-100 text-slate-600"
                     }`}
                   >
                     {isPast ? <Check className="h-5 w-5" /> : s.number}
@@ -423,7 +409,6 @@ export const BookPage = () => {
               );
             })}
           </div>
-          {/* Progress bar line */}
           <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full bg-Primary_app transition-all duration-300"
@@ -432,12 +417,9 @@ export const BookPage = () => {
           </div>
         </div>
 
-        {/* Wizard Layout: Steps on Left, Live Summary on Right */}
         <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-12">
-          {/* Main Step Content */}
           <div className="lg:col-span-8">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-              {/* STEP 1: MUTAXASSISLIK VA XIZMATNI TANLASH */}
               {currentStep === 1 && (
                 <div>
                   <div className="mb-6">
@@ -447,19 +429,19 @@ export const BookPage = () => {
                     <h2 className="mt-1 text-2xl font-bold text-slate-900">
                       Mutaxassislik va Xizmatni tanlang
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-slate-600">
                       Klinikamiz yo‘nalishini tanlang va kerakli xizmat turini belgilang.
                     </p>
                   </div>
 
-                  {/* Specialty chips */}
                   <div className="mb-6">
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
                       Mutaxassislik bo‘yicha saralash:
                     </label>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
+                        aria-pressed={selectedSpecialtyId === ""}
                         onClick={() => setSelectedSpecialtyId("")}
                         className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition shrink-0 whitespace-nowrap ${
                           selectedSpecialtyId === ""
@@ -473,6 +455,7 @@ export const BookPage = () => {
                         <button
                           key={sp.id}
                           type="button"
+                          aria-pressed={selectedSpecialtyId === sp.id}
                           onClick={() => setSelectedSpecialtyId(sp.id)}
                           className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition shrink-0 whitespace-nowrap ${
                             selectedSpecialtyId === sp.id
@@ -487,25 +470,26 @@ export const BookPage = () => {
                     </div>
                   </div>
 
-                  {/* Services list */}
                   <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
                     {availableServices.length === 0 ? (
-                      <p className="py-8 text-center text-sm text-slate-400">
+                      <p className="py-8 text-center text-sm text-slate-500">
                         Tanlangan mutaxassislik bo‘yicha xizmatlar topilmadi.
                       </p>
                     ) : (
                       availableServices.map((service) => {
                         const isSelected = selectedServiceId === service.id;
                         return (
-                          <div
+                          <button
                             key={service.id}
+                            type="button"
+                            aria-pressed={isSelected}
                             onClick={() => {
                               setSelectedServiceId(service.id);
                               if (service.specialtyId && !selectedSpecialtyId) {
                                 setSelectedSpecialtyId(service.specialtyId);
                               }
                             }}
-                            className={`cursor-pointer rounded-2xl border p-4 transition ${
+                            className={`w-full text-left rounded-2xl border p-4 transition ${
                               isSelected
                                 ? "border-Primary_app bg-blue-50/60 ring-2 ring-Primary_app/20"
                                 : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
@@ -517,7 +501,7 @@ export const BookPage = () => {
                                   className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ${
                                     isSelected
                                       ? "bg-Primary_app text-white"
-                                      : "bg-slate-100 text-slate-500"
+                                      : "bg-slate-100 text-slate-600"
                                   }`}
                                 >
                                   {isSelected ? (
@@ -527,10 +511,10 @@ export const BookPage = () => {
                                   )}
                                 </div>
                                 <div>
-                                  <h4 className="font-bold text-slate-900">
+                                  <h3 className="font-bold text-slate-900">
                                     {service.name}
-                                  </h4>
-                                  <p className="mt-1 text-xs text-slate-500">
+                                  </h3>
+                                  <p className="mt-1 text-xs text-slate-600">
                                     {service.description}
                                   </p>
                                 </div>
@@ -539,12 +523,12 @@ export const BookPage = () => {
                                 <p className="font-extrabold text-Primary_app whitespace-nowrap">
                                   {formatSom(service.price)}
                                 </p>
-                                <span className="text-[11px] font-medium text-slate-400 whitespace-nowrap">
+                                <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
                                   ~{service.durationMinutes} daqiqa
                                 </span>
                               </div>
                             </div>
-                          </div>
+                          </button>
                         );
                       })
                     )}
@@ -563,7 +547,6 @@ export const BookPage = () => {
                 </div>
               )}
 
-              {/* STEP 2: SHIFOKORNI TANLASH */}
               {currentStep === 2 && (
                 <div>
                   <div className="mb-6">
@@ -573,24 +556,26 @@ export const BookPage = () => {
                     <h2 className="mt-1 text-2xl font-bold text-slate-900">
                       Shifokorni tanlang
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-slate-600">
                       Ushbu xizmat bo‘yicha qabul olib boruvchi malakali mutaxassislarimiz.
                     </p>
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2 max-h-[460px] overflow-y-auto pr-1">
                     {availableDoctors.length === 0 ? (
-                      <div className="col-span-2 py-8 text-center text-sm text-slate-400">
+                      <div className="col-span-2 py-8 text-center text-sm text-slate-500">
                         Tanlangan xizmat bo‘yicha shifokor topilmadi.
                       </div>
                     ) : (
                       availableDoctors.map((doc) => {
                         const isSelected = selectedDoctorId === doc.id;
                         return (
-                          <div
+                          <button
                             key={doc.id}
+                            type="button"
+                            aria-pressed={isSelected}
                             onClick={() => setSelectedDoctorId(doc.id)}
-                            className={`cursor-pointer rounded-2xl border p-4 transition ${
+                            className={`w-full text-left rounded-2xl border p-4 transition ${
                               isSelected
                                 ? "border-Primary_app bg-blue-50/60 ring-2 ring-Primary_app/20"
                                 : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
@@ -604,20 +589,20 @@ export const BookPage = () => {
                               />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
-                                  <h4 className="truncate font-bold text-slate-900">
+                                  <h3 className="truncate font-bold text-slate-900">
                                     {doc.fullName}
-                                  </h4>
+                                  </h3>
                                   {isSelected && (
                                     <span className="rounded-full bg-Primary_app p-1 text-white shrink-0">
                                       <Check className="h-3 w-3" />
                                     </span>
                                   )}
                                 </div>
-                                <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                                <p className="mt-0.5 line-clamp-1 text-xs text-slate-600">
                                   {doc.title}
                                 </p>
                                 <div className="mt-2 flex items-center gap-3 text-xs text-slate-600">
-                                  <span className="flex items-center gap-1 font-semibold text-amber-500">
+                                  <span className="flex items-center gap-1 font-semibold text-amber-600">
                                     <Star className="h-3.5 w-3.5 fill-amber-400" />
                                     {doc.rating}
                                   </span>
@@ -628,7 +613,7 @@ export const BookPage = () => {
                                 </p>
                               </div>
                             </div>
-                          </div>
+                          </button>
                         );
                       })
                     )}
@@ -654,7 +639,6 @@ export const BookPage = () => {
                 </div>
               )}
 
-              {/* STEP 3: SANANI VA BO'SH VAQT SLOTINI TANLASH */}
               {currentStep === 3 && (
                 <div>
                   <div className="mb-6">
@@ -664,18 +648,19 @@ export const BookPage = () => {
                     <h2 className="mt-1 text-2xl font-bold text-slate-900">
                       Sana va bo‘sh vaqt slotini tanlang
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-slate-600">
                       Faqat haqiqatda mavjud va bo‘sh bo‘lgan vaqt slotlari ko‘rsatiladi.
                     </p>
                   </div>
 
-                  {/* Date Input */}
                   <div className="mb-6">
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-600">
+                    <label htmlFor="appointment-date-input" className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-700">
                       Qabul sanasi:
                     </label>
                     <div className="max-w-xs">
                       <TextInput
+                        id="appointment-date-input"
+                        aria-label="Qabul sanasi"
                         type="date"
                         min={todayIsoDate()}
                         value={selectedDate}
@@ -692,22 +677,21 @@ export const BookPage = () => {
                     )}
                   </div>
 
-                  {/* Doctor Working Status */}
                   {!isDoctorWorkingToday ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
                       Shifokor {selectedDoctor?.fullName} bu kunda qabul o‘tkazmaydi (dam olish kuni). Iltimos, boshqa sanani tanlang.
                     </div>
                   ) : slots.isLoading ? (
-                    <div className="py-8 text-center text-sm text-slate-500 animate-pulse">
+                    <div className="py-8 text-center text-sm text-slate-600 animate-pulse">
                       Shifokorning bo‘sh vaqtlari tekshirilmoqda...
                     </div>
                   ) : availableSlots.length === 0 ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
                       Ushbu sanada barcha vaqtlar band qilingan. Iltimos, boshqa kunni tanlang.
                     </div>
                   ) : (
                     <div>
-                      <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600">
+                      <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-700">
                         Bo‘sh vaqt slotlari ({availableSlots.length} ta mavjud):
                       </p>
                       <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5">
@@ -718,6 +702,8 @@ export const BookPage = () => {
                             <button
                               key={slot.time}
                               type="button"
+                              aria-label={`Vaqt: ${slot.time}`}
+                              aria-pressed={isSelected}
                               onClick={() => setSelectedTime(slot.time)}
                               className={`rounded-xl border py-2.5 text-center text-xs font-bold transition whitespace-nowrap ${
                                 isSelected
@@ -731,7 +717,9 @@ export const BookPage = () => {
                             <div
                               key={slot.time}
                               title="Band qilingan"
-                              className="cursor-not-allowed rounded-xl border border-slate-100 bg-slate-100 py-2.5 text-center text-xs text-slate-400 line-through opacity-50 whitespace-nowrap"
+                              aria-label={`Band qilingan vaqt: ${slot.time}`}
+                              aria-disabled="true"
+                              className="cursor-not-allowed rounded-xl border border-slate-100 bg-slate-100 py-2.5 text-center text-xs text-slate-500 line-through opacity-60 whitespace-nowrap"
                             >
                               {slot.time}
                             </div>
@@ -761,7 +749,6 @@ export const BookPage = () => {
                 </div>
               )}
 
-              {/* STEP 4: BEMOR MA'LUMOTLARI VA TASDIQLASH */}
               {currentStep === 4 && (
                 <form onSubmit={handleSubmitBooking}>
                   <div className="mb-6">
@@ -771,14 +758,16 @@ export const BookPage = () => {
                     <h2 className="mt-1 text-2xl font-bold text-slate-900">
                       Bemor ma&apos;lumotlari va tasdiqlash
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-slate-600">
                       Ismingiz va telefoningizni kiriting. Navbat haqidagi SMS va tasdiqnoma shu raqamga bog‘lanadi.
                     </p>
                   </div>
 
                   <div className="space-y-4">
-                    <FieldShell label="Bemorning to‘liq ismi" error={errors.name}>
+                    <FieldShell label="Bemorning to‘liq ismi" error={errors.name} htmlFor="patient-name">
                       <TextInput
+                        id="patient-name"
+                        aria-label="Bemorning to‘liq ismi"
                         placeholder="Masalan: Dilshod Rahimov"
                         value={patientName}
                         onChange={(e) => setPatientName(e.target.value)}
@@ -789,16 +778,21 @@ export const BookPage = () => {
                     <FieldShell
                       label="Telefon raqami (+998XXXXXXXXX)"
                       error={errors.phone}
+                      htmlFor="patient-phone"
                     >
                       <TextInput
+                        id="patient-phone"
+                        aria-label="Telefon raqami"
                         placeholder="+998901234567"
                         value={patientPhone}
                         onChange={(e) => setPatientPhone(e.target.value)}
                       />
                     </FieldShell>
 
-                    <FieldShell label="Shikoyat yoki qo‘shimcha izoh (ixtiyoriy)">
+                    <FieldShell label="Shikoyat yoki qo‘shimcha izoh (ixtiyoriy)" htmlFor="patient-notes">
                       <TextArea
+                        id="patient-notes"
+                        aria-label="Shikoyat yoki qo‘shimcha izoh"
                         placeholder="Kasallik alomatlari, avvalgi tashxislar yoki xohishlaringiz..."
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
@@ -832,7 +826,6 @@ export const BookPage = () => {
             </div>
           </div>
 
-          {/* Live Booking Summary Card */}
           <div className="lg:col-span-4">
             <div className="sticky top-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
@@ -842,35 +835,35 @@ export const BookPage = () => {
 
               <div className="mt-5 space-y-4 border-t border-slate-100 pt-4 text-sm">
                 <div>
-                  <span className="text-xs font-semibold uppercase text-slate-400">
+                  <span className="text-xs font-bold uppercase text-slate-600">
                     Xizmat turi:
                   </span>
                   <p className="font-bold text-slate-800">
                     {selectedService?.name || "Tanlanmagan"}
                   </p>
                   {selectedService && (
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs font-semibold text-slate-600">
                       Davomiyligi: ~{selectedService.durationMinutes} daqiqa
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <span className="text-xs font-semibold uppercase text-slate-400">
+                  <span className="text-xs font-bold uppercase text-slate-600">
                     Shifokor:
                   </span>
                   <p className="font-bold text-slate-800">
                     {selectedDoctor?.fullName || "Tanlanmagan"}
                   </p>
                   {selectedDoctor && (
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-slate-600">
                       {selectedDoctor.title}
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <span className="text-xs font-semibold uppercase text-slate-400">
+                  <span className="text-xs font-bold uppercase text-slate-600">
                     Sana va Vaqt:
                   </span>
                   <p className="font-bold text-Primary_app">
@@ -884,14 +877,14 @@ export const BookPage = () => {
 
                 <div className="border-t border-slate-100 pt-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase text-slate-500">
+                    <span className="text-xs font-bold uppercase text-slate-700">
                       Konsultatsiya to‘lovi:
                     </span>
                     <span className="text-base font-extrabold text-emerald-600 whitespace-nowrap">
                       {formatSom(selectedService?.price || selectedDoctor?.consultationPrice || 0)}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-400">
+                  <p className="mt-1 text-[11px] text-slate-600">
                     * To‘lov qabul vaqtida klinikada amalga oshiriladi (naqd yoki karta).
                   </p>
                 </div>

@@ -57,9 +57,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
-/**
- * 1. PrimaryButton — to'liq fonli asosiy CTA tugma (Primary_app)
- */
 export const PrimaryButton = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", ...props }, ref) => (
     <Button ref={ref} variant={variant} className={className} {...props} />
@@ -67,9 +64,6 @@ export const PrimaryButton = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 PrimaryButton.displayName = "PrimaryButton";
 
-/**
- * 2. SecondaryButton — chegaralangan (border-2 border-Primary_app), oq fonli, toza va aniq tugma
- */
 export const SecondaryButton = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "secondary", ...props }, ref) => (
     <Button ref={ref} variant={variant} className={className} {...props} />

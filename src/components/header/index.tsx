@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Menu, Phone, Shield, X } from "lucide-react";
+import { Menu, Phone, X } from "lucide-react";
 import { Link, usePathname } from "@/components";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,6 @@ const nav = [
   { href: "/appointments", label: "Mening qabullarim" },
   { href: "/about", label: "Klinika" },
   { href: "/contact", label: "Aloqa" },
-  { href: "/admin", label: "Boshqaruv", icon: Shield },
 ];
 
 export const Header = () => {
@@ -30,7 +29,6 @@ export const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
       <div className="container flex h-[72px] items-center justify-between gap-2 sm:gap-4 px-4 sm:px-6 lg:px-8">
-        {/* LOGO */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5" onClick={() => setOpen(false)}>
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-Primary_app text-sm font-extrabold text-white shadow-md shadow-Primary_app/25">
             MD
@@ -40,8 +38,7 @@ export const Header = () => {
           </span>
         </Link>
 
-        {/* DESKTOP NAV LINKS */}
-        <nav className="hidden items-center gap-0.5 xl:gap-1.5 lg:flex">
+        <nav aria-label="Asosiy menyu" className="hidden items-center gap-0.5 xl:gap-1.5 lg:flex">
           {nav.map((item) => (
             <Link
               key={item.href}
@@ -50,8 +47,7 @@ export const Header = () => {
                 "rounded-xl px-2.5 py-2 text-[13px] xl:text-sm font-semibold transition whitespace-nowrap shrink-0",
                 isActive(item.href)
                   ? "bg-Primary_app/10 text-Primary_app"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-                item.href === "/admin" && "text-slate-400 hover:text-Primary_app"
+                  : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
               )}
             >
               <span className="flex items-center gap-1.5 whitespace-nowrap">
@@ -61,7 +57,6 @@ export const Header = () => {
           ))}
         </nav>
 
-        {/* RIGHT SIDE: PHONE & BOOK BUTTON */}
         <div className="hidden shrink-0 items-center gap-3 lg:flex">
           <a
             href="tel:+998712000808"
@@ -75,20 +70,20 @@ export const Header = () => {
           </Button>
         </div>
 
-        {/* MOBILE MENU TOGGLE BUTTON */}
         <button
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 lg:hidden hover:bg-slate-50"
           onClick={() => setOpen((value) => !value)}
           aria-label="Menyu"
+          aria-expanded={open}
+          aria-controls="mobile-nav"
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
-      {/* MOBILE DROPDOWN MENU */}
       {open && (
-        <div className="border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur-md lg:hidden">
-          <div className="flex flex-col gap-1">
+        <div id="mobile-nav" className="border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur-md lg:hidden">
+          <nav aria-label="Mobil menyu" className="flex flex-col gap-1">
             {nav.map((item) => (
               <Link
                 key={item.href}
@@ -118,7 +113,7 @@ export const Header = () => {
                 </Link>
               </Button>
             </div>
-          </div>
+          </nav>
         </div>
       )}
     </header>

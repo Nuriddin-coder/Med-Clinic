@@ -1,9 +1,6 @@
 "use client";
 
-/// Hook's :
-/// Types :
 
-/// Utils :
 import { useLocale, useTranslations } from "next-intl";
 import { fileUrl } from "@/constants/data";
 import { Link } from "@/components";

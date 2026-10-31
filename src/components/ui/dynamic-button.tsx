@@ -17,9 +17,6 @@ export interface DynamicButtonProps extends ButtonProps {
   buttonType?: "primary" | "secondary";
 }
 
-/**
- * DynamicButton — primary yoki secondary variantini prop orqali tanlash imkonini beruvchi yagona dinamik komponent
- */
 export const DynamicButton = ({
   buttonType = "primary",
   ...props

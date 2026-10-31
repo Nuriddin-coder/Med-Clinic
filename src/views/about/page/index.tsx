@@ -23,7 +23,7 @@ export const AboutPage = () => {
           <ul className="mt-4 space-y-3 text-sm leading-6 text-Navbar_Color">
             <li>Onlayn yozilish: faqat haqiqiy bo‘sh vaqtlar.</li>
             <li>Shifokorlar ma’lumoti ochiq — tajriba, grafigi va bemor baholari.</li>
-            <li>Qabul holatini klinika administratori boshqaradi, siz o‘zingiznikini bekor qila olasiz.</li>
+            <li>Qabul holatini klinika xodimlari boshqaradi, siz o‘zingiznikini bekor qila olasiz.</li>
             <li>Kirish va parol yo‘q. Identifikatsiya — telefon raqami.</li>
           </ul>
           <h2 className="mt-8 text-xl font-semibold">Yo‘nalishlar</h2>
